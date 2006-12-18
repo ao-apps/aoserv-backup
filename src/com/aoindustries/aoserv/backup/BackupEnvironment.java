@@ -407,6 +407,7 @@ abstract public class BackupEnvironment implements BitRateProvider {
             AOServDaemonConnector connector = AOServDaemonConnector.getConnector(
                 access.getAOServerPKey(),
                 access.getHost(),
+                conn.getLocalIp(),
                 access.getPort(),
                 access.getProtocol().getProtocol(),
                 null,
@@ -414,8 +415,8 @@ abstract public class BackupEnvironment implements BitRateProvider {
                 AOPool.DEFAULT_MAX_CONNECTION_AGE,
                 SSLConnector.class,
                 SSLConnector.sslProviderLoaded,
-                AOServClientConfiguration.getProperty("aoserv.client.ssl.truststore.path"),
-                AOServClientConfiguration.getProperty("aoserv.client.ssl.truststore.password"),
+                AOServClientConfiguration.getSslTruststorePath(),
+                AOServClientConfiguration.getSslTruststorePassword(),
                 getErrorHandler()
             );
             connector.sendData(
