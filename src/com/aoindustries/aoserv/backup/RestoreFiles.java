@@ -115,7 +115,7 @@ public class RestoreFiles {
 
                             String destPath=destinationDirectory+path;
                             UnixFile uf=new UnixFile(destPath);
-                            if(!uf.exists()) {
+                            if(!uf.getStat().exists()) {
                                 long mode=fb.getMode();
                                 if(UnixFile.isRegularFile(mode)) {
                                     if(bd!=null) {
@@ -136,7 +136,7 @@ public class RestoreFiles {
                                             uf.delete();
                                             throw exc;
                                         }
-                                        uf.setModifyTime(fb.getModifyTime());
+                                        uf.utime(uf.getStat().getAccessTime(), fb.getModifyTime());
                                     } else {
                                         err.println(path+" - BackupData not found");
                                         err.flush();

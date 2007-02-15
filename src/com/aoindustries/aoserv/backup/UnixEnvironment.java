@@ -81,7 +81,7 @@ public class UnixEnvironment extends StandaloneEnvironment {
     public long getStatMode(String filename) throws IOException {
         Profiler.startProfile(Profiler.FAST, UnixEnvironment.class, "getStatMode(String)", null);
         try {
-            return getUnixFile(filename).getStatMode();
+            return getUnixFile(filename).getStat().getRawMode();
         } finally {
             Profiler.endProfile(Profiler.FAST);
         }
@@ -99,7 +99,7 @@ public class UnixEnvironment extends StandaloneEnvironment {
     public FileBackupDevice getFileBackupDevice(String filename) throws IOException, SQLException {
         Profiler.startProfile(Profiler.FAST, UnixEnvironment.class, "getFileBackupDevice(String)", null);
         try {
-            long device=getUnixFile(filename).getDevice();
+            long device=getUnixFile(filename).getStat().getDevice();
             FileBackupDevice dev=fileBackupDeviceTable.get(device);
             if(dev==null) throw new IOException("Unable to find FileBackupDevice for '"+filename+"': "+device);
             return dev;
@@ -111,7 +111,7 @@ public class UnixEnvironment extends StandaloneEnvironment {
     public long getInode(String filename) throws IOException {
         Profiler.startProfile(Profiler.FAST, UnixEnvironment.class, "getInode(String)", null);
         try {
-            long inode=getUnixFile(filename).getInode();
+            long inode=getUnixFile(filename).getStat().getInode();
             if(inode==-1) throw new IOException("Inode value of -1 conflicts with internal use of -1 as null");
             return inode;
         } finally {
@@ -122,7 +122,7 @@ public class UnixEnvironment extends StandaloneEnvironment {
     public int getUID(String filename) throws IOException {
         Profiler.startProfile(Profiler.FAST, UnixEnvironment.class, "getUID(String)", null);
         try {
-            return getUnixFile(filename).getUID();
+            return getUnixFile(filename).getStat().getUID();
         } finally {
             Profiler.endProfile(Profiler.FAST);
         }
@@ -131,7 +131,7 @@ public class UnixEnvironment extends StandaloneEnvironment {
     public int getGID(String filename) throws IOException {
         Profiler.startProfile(Profiler.FAST, UnixEnvironment.class, "getGID(String)", null);
         try {
-            return getUnixFile(filename).getGID();
+            return getUnixFile(filename).getStat().getGID();
         } finally {
             Profiler.endProfile(Profiler.FAST);
         }
@@ -140,7 +140,7 @@ public class UnixEnvironment extends StandaloneEnvironment {
     public long getModifyTime(String filename) throws IOException {
         Profiler.startProfile(Profiler.FAST, UnixEnvironment.class, "getModifyTime(String)", null);
         try {
-            return getUnixFile(filename).getModifyTime();
+            return getUnixFile(filename).getStat().getModifyTime();
         } finally {
             Profiler.endProfile(Profiler.FAST);
         }
@@ -167,7 +167,7 @@ public class UnixEnvironment extends StandaloneEnvironment {
     public long getDeviceIdentifier(String filename) throws IOException {
         Profiler.startProfile(Profiler.FAST, UnixEnvironment.class, "getDeviceIdentifier(String)", null);
         try {
-            return getUnixFile(filename).getDeviceIdentifier();
+            return getUnixFile(filename).getStat().getDeviceIdentifier();
         } finally {
             Profiler.endProfile(Profiler.FAST);
         }
@@ -225,7 +225,7 @@ public class UnixEnvironment extends StandaloneEnvironment {
 
             // Second, the FileBackupDevices take effect overlaying a no recurse over previous settings
             UnixFile unixFile=getUnixFile(filename);
-            long device=unixFile.getDevice();
+            long device=unixFile.getStat().getDevice();
             FileBackupDevice fileDevice=fileBackupDeviceTable.get(device);
             if(fileDevice==null) throw new IOException("Unable to find FileBackupDevice for device #"+device+": filename='"+filename+'\'');
             if(!fileDevice.canBackup()) {
