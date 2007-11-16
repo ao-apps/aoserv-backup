@@ -240,7 +240,7 @@ final public class BackupDaemon implements Runnable {
                                         if(dev==null || dev.canBackup() || UnixFile.isDirectory(mode)) {
                                             paths[batchSize]=filename;
                                             inodes[batchSize]=environment.getInode(filename);
-                                            packageNums[batchSize]=fileSetting.getPackage().getPKey();
+                                            packageNums[batchSize]=fileSetting.getPackage().getPkey();
                                             modes[batchSize]=mode;
                                             uids[batchSize]=environment.getUID(filename);
                                             gids[batchSize]=environment.getGID(filename);
