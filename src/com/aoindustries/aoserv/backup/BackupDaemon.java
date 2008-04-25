@@ -5,778 +5,917 @@ package com.aoindustries.aoserv.backup;
  * 816 Azalea Rd, Mobile, Alabama, 36693, U.S.A.
  * All rights reserved.
  */
-import com.aoindustries.aoserv.client.Package;
-import com.aoindustries.aoserv.client.*;
-import com.aoindustries.email.*;
-import com.aoindustries.io.*;
-import com.aoindustries.io.unix.*;
-import com.aoindustries.profiler.*;
-import com.aoindustries.md5.*;
-import com.aoindustries.sql.*;
-import com.aoindustries.util.*;
-import com.aoindustries.util.sort.*;
-import java.io.*;
-import java.sql.*;
-import java.util.*;
-import java.util.zip.*;
+import com.aoindustries.aoserv.client.AOServClientConfiguration;
+import com.aoindustries.aoserv.client.AOServConnector;
+import com.aoindustries.aoserv.client.AOServer;
+import com.aoindustries.aoserv.client.FailoverFileLog;
+import com.aoindustries.aoserv.client.FailoverFileReplication;
+import com.aoindustries.aoserv.client.FailoverFileSchedule;
+import com.aoindustries.aoserv.client.NetBind;
+import com.aoindustries.aoserv.client.NetPort;
+import com.aoindustries.aoserv.client.Protocol;
+import com.aoindustries.aoserv.client.SSLConnector;
+import com.aoindustries.aoserv.client.Server;
+import com.aoindustries.aoserv.daemon.client.AOServDaemonConnection;
+import com.aoindustries.aoserv.daemon.client.AOServDaemonConnector;
+import com.aoindustries.aoserv.daemon.client.AOServDaemonProtocol;
+import com.aoindustries.io.AOPool;
+import com.aoindustries.io.BitRateOutputStream;
+import com.aoindustries.io.ByteCountInputStream;
+import com.aoindustries.io.ByteCountOutputStream;
+import com.aoindustries.io.CompressedDataInputStream;
+import com.aoindustries.io.CompressedDataOutputStream;
+import com.aoindustries.io.TerminalWriter;
+import com.aoindustries.io.unix.UnixFile;
+import com.aoindustries.md5.MD5;
+import com.aoindustries.table.Table;
+import com.aoindustries.table.TableListener;
+import com.aoindustries.util.BufferManager;
+import com.aoindustries.util.ErrorHandler;
+import com.aoindustries.util.ErrorPrinter;
+import java.io.DataOutputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
 
 /**
- * The <code>BackupDaemon</code> runs on every server that is backed-up and
- * sends its backup info to the master as scheduled in the <code>servers</code>
- * table.
+ * The <code>FailoverFileReplicationDaemon</code> runs on every server that is backed-up.
  *
  * @author  AO Industries, Inc.
  */
-final public class BackupDaemon implements Runnable {
+final public class BackupDaemon {
 
     final private BackupEnvironment environment;
 
-    private BackupDaemon(BackupEnvironment environment) {
+    private boolean isStarted = false;
+    final private Map<FailoverFileReplication,BackupDaemonThread> threads = new HashMap<FailoverFileReplication,BackupDaemonThread>();
+
+    public BackupDaemon(BackupEnvironment environment) {
         this.environment=environment;
     }
 
-    private final Object fileSourceLock=new Object();
-    private Stack<String> currentDirectories;
-    private Stack<String[]> currentLists;
-    private Stack<Integer> currentIndexes;
-    private boolean filesDone=false;
+    final private TableListener tableListener = new TableListener() {
+        @Override
+        public void tableUpdated(Table table) {
+            try {
+                verifyThreads();
+            } catch(IOException err) {
+                environment.error(null, err);
+            } catch(SQLException err) {
+                environment.error(null, err);
+            }
+        }
+    };
 
     /**
-     * Resets the source of filenames used during the backup process.
+     * Starts the backup daemon (as one thread per FailoverFileReplication.
      */
-    private void resetFilenamePointer() {
-        Profiler.startProfile(Profiler.FAST, BackupDaemon.class, "resetFilenamePointer()", null);
-        try {
-            synchronized(fileSourceLock) {
-                currentDirectories=null;
-                currentLists=null;
-                currentIndexes=null;
-                filesDone=false;
-            }
-        } finally {
-            Profiler.endProfile(Profiler.FAST);
+    synchronized public void start() throws IOException, SQLException {
+        if(!isStarted) {
+            AOServConnector conn = environment.getConnector();
+            conn.failoverFileReplications.addTableListener(tableListener);
+            isStarted = true;
+            verifyThreads();
         }
     }
 
-    /**
-     * Gets the next filename in the directory structure.  The <code>BackupFileSetting</code> contains <code>null</code>
-     * when all files have been traversed.
-     */
-    private void getNextFilename(BackupFileSetting fileSetting, FileBackupSettingTable fileBackupSettingTable) throws IOException, SQLException {
-        Profiler.startProfile(Profiler.IO, BackupDaemon.class, "getNextFilename(BackupFileSetting,FileBackupSettingTable)", null);
-        try {
-            synchronized(fileSourceLock) {
-                // Loop trying to get the file because some errors may normally occur due to dynamic filesystems
-                while(true) {
-                    if(filesDone) {
-                        fileSetting.clear();
-                        return;
-                    }
-
-                    // Initialize the stacks, if needed
-                    if(currentDirectories==null) {
-                        (currentDirectories=new Stack<String>()).push("");
-                        (currentLists=new Stack<String[]>()).push(environment.getFilesystemRoots());
-                        (currentIndexes=new Stack<Integer>()).push(Integer.valueOf(0));
-                    }
-                    String currentDirectory=null;
-                    String[] currentList=null;
-                    int currentIndex=-1;
-                    try {
-                        currentDirectory=currentDirectories.peek();
-                        currentList=currentLists.peek();
-                        currentIndex=(currentIndexes.peek()).intValue();
-
-                        // Undo the stack as far as needed
-                        while(currentDirectory!=null && currentIndex>=currentList.length) {
-                            currentDirectories.pop();
-                            currentDirectory=currentDirectories.peek();
-                            currentLists.pop();
-                            currentList=currentLists.peek();
-                            currentIndexes.pop();
-                            currentIndex=currentIndexes.peek();
-                        }
-                    } catch(EmptyStackException err) {
-                        currentDirectory=null;
-                    }
-                    if(currentDirectory==null) {
-                        filesDone=true;
-                        fileSetting.clear();
-                        return;
-                    } else {
-                        // Get the current filename
-                        String filename;
-                        if(currentDirectory.length()==0) filename=currentList[currentIndex++];
-                        else if(environment.isFilesystemRoot(currentDirectory)) filename=currentDirectory+currentList[currentIndex++];
-                        else filename=currentDirectory+'/'+currentList[currentIndex++];
-
-                        // Set to the next file
-                        currentIndexes.pop();
-                        currentIndexes.push(currentIndex);
-                        try {
-                            fileSetting.setFilename(filename);
-                            environment.getBackupFileSetting(fileSetting);
-                            short backup_level=fileSetting.getBackupLevel().getLevel();
-                            boolean recurse=fileSetting.isRecursible();
-                            // IMPORTANT: Should still recurse if there are any file backup settings
-                            // that require recursion to reach the paths
-                            if(!recurse) {
-                                List<FileBackupSetting> fbss=fileBackupSettingTable.getRows();
-                                for(int c=0;c<fbss.size();c++) {
-                                    FileBackupSetting fbs=fbss.get(c);
-                                    if(
-                                        (
-                                            fbs.getBackupLevel().getLevel()>BackupLevel.DO_NOT_BACKUP
-                                            || fbs.isRecursible()
-                                        ) && fbs.getPath().startsWith(filename)
-                                    ) {
-                                        recurse=true;
-                                        break;
-                                    }
-                                }
-                            }
-                            if(backup_level>BackupLevel.DO_NOT_BACKUP || recurse) {
-                                if(recurse) {
-                                    // Recurse for directories
-                                    long statMode=environment.getStatMode(filename);
-                                    if(
-                                        !UnixFile.isSymLink(statMode)
-                                        && UnixFile.isDirectory(statMode)
-                                    ) {
-                                        // Push on stacks for next level
-                                        String[] list=environment.getDirectoryList(filename);
-                                        if(list!=null && list.length>0) {
-                                            AutoSort.sortStatic(list);
-                                            currentDirectories.push(filename);
-                                            currentLists.push(list);
-                                            currentIndexes.push(0);
-                                        }
-                                    }
-                                }
-                                if(backup_level>BackupLevel.DO_NOT_BACKUP) return;
-                            }
-                        } catch(FileNotFoundException err) {
-                            environment.getErrorHandler().reportWarning(err, null);
-                        }
-                    }
+    synchronized private void verifyThreads() throws IOException, SQLException {
+        // Ignore events coming in after shutdown
+        if(!isStarted) {
+            AOServConnector conn = environment.getConnector();
+            List<FailoverFileReplication> removedList = new ArrayList<FailoverFileReplication>(threads.keySet());
+            for(FailoverFileReplication ffr : conn.failoverFileReplications.getRows()) {
+                removedList.remove(ffr);
+                if(!threads.containsKey(ffr)) {
+                    if(environment.isDebugEnabled()) environment.debug("Starting BackupDaemonThread for "+ffr);
+                    BackupDaemonThread thread = new BackupDaemonThread(environment, ffr);
+                    threads.put(ffr, thread);
+                    thread.start();
                 }
             }
-        } finally {
-            Profiler.endProfile(Profiler.IO);
+            for(FailoverFileReplication ffr : removedList) {
+                BackupDaemonThread thread = threads.get(ffr);
+                if(environment.isDebugEnabled()) environment.debug("Stopping BackupDaemonThread for "+ffr);
+                thread.stop();
+            }
+            for(FailoverFileReplication ffr : removedList) {
+                BackupDaemonThread thread = threads.remove(ffr);
+                if(environment.isDebugEnabled()) environment.debug("Joining BackupDaemonThread for "+ffr);
+                try {
+                    thread.join();
+                } catch(InterruptedException err) {
+                    environment.warn(null, err);
+                }
+            }
         }
     }
 
-    private void backupFileSystem() throws IOException, SQLException {
-        Profiler.startProfile(Profiler.SLOW, BackupDaemon.class, "backupFileSystem()", null);
-        try {
-            Random random=environment.getRandom();
-            ProcessTimer timer=new ProcessTimer(
-                random,
-                environment.getWarningSmtpServer(),
-                environment.getWarningEmailFrom(),
-                environment.getWarningEmailTo(),
-                "File backup taking too long",
-                "File Backup",
-                environment.getWarningTime(),
-                environment.getWarningReminderInterval()
-            );
-            try {
-                timer.start();
-
-                // Various statistics are maintained throughout the backup process
-                BackupStat backupStat=new BackupStat(environment);
+    /**
+     * Stops the backup daemon and any currently running backups.
+     */
+    synchronized public void stop() throws IOException, SQLException {
+        if(isStarted) {
+            AOServConnector conn = environment.getConnector();
+            conn.failoverFileReplications.removeTableListener(tableListener);
+            isStarted = false;
+            // Stop each thread
+            for(Map.Entry<FailoverFileReplication,BackupDaemonThread> entry : threads.entrySet()) {
+                if(environment.isDebugEnabled()) environment.debug("Stopping BackupDaemonThread for "+entry.getKey());
+                entry.getValue().stop();
+            }
+            // Join each thread (wait for actual stop)
+            for(Map.Entry<FailoverFileReplication,BackupDaemonThread> entry : threads.entrySet()) {
+                if(environment.isDebugEnabled()) environment.debug("Joining BackupDaemonThread for "+entry.getKey());
                 try {
-                    environment.init();
-                    try {
-                        Server thisServer=environment.getThisServer();
-                        AOServConnector conn=environment.getConnector();
-                        FileBackupTable fileBackupTable=conn.fileBackups;
-                        FileBackupSettingTable fileBackupSettingTable=conn.fileBackupSettings;
+                    entry.getValue().join();
+                } catch(InterruptedException err) {
+                    if(environment.isWarnEnabled()) environment.warn(null, err);
+                }
+            }
+            threads.clear();
+        }
+    }
 
-                        // Get a list of all the file backup pkeys currently indicated as existing on this server
-                        SortedIntArrayList latestFileBackupSet=thisServer.getLatestFileBackupSet();
-                        boolean[] latestFileBackupSetCompleteds=new boolean[latestFileBackupSet.size()];
+    private static class BackupDaemonThread implements Runnable {
 
-                        final int BATCH_SIZE=environment.getFileBatchSize();
+        private static String convertExtraInfo(Object[] extraInfo) {
+            if(extraInfo==null) return null;
+            StringBuilder SB = new StringBuilder();
+            for(Object o : extraInfo) SB.append(o).append('\n');
+            return SB.toString();
+        }
 
-                        // The processing values are stored here
-                        String[] filenames=new String[BATCH_SIZE];
-                        String[] paths=new String[BATCH_SIZE];
-                        FileBackupDevice[] devices=new FileBackupDevice[BATCH_SIZE];
-                        long[] inodes=new long[BATCH_SIZE];
-                        int[] packageNums=new int[BATCH_SIZE];
-                        long[] modes=new long[BATCH_SIZE];
-                        int[] uids=new int[BATCH_SIZE];
-                        int[] gids=new int[BATCH_SIZE];
-                        long[] modify_times=new long[BATCH_SIZE];
-                        long[] lengths=new long[BATCH_SIZE];
-                        short[] backup_levels=new short[BATCH_SIZE];
-                        short[] backup_retentions=new short[BATCH_SIZE];
-                        String[] symlink_targets=new String[BATCH_SIZE];
-                        long[] device_ids=new long[BATCH_SIZE];
-                        String[] prunedPaths=new String[BATCH_SIZE];
-                        BackupFileSetting fileSetting=new BackupFileSetting();
-                        boolean[] md5Faileds=new boolean[BATCH_SIZE];
-                        LongList prunedMD5His=new LongArrayList(BATCH_SIZE);
-                        LongList prunedMD5Los=new LongArrayList(BATCH_SIZE);
-                        LongList prunedLengths=new LongArrayList(BATCH_SIZE);
+        /**
+         * Gets the next filenames, up to batchSize.
+         * @return the number of files in the array, zero (0) indicates iteration has completed
+         */
+        private static int getNextFilenames(Iterator<String> filenameIterator, String[] filenames, int batchSize) throws IOException {
+            int c=0;
+            while(c<batchSize) {
+                if(!filenameIterator.hasNext()) break;
+                String filename = filenameIterator.next();
+                filenames[c++]=filename;
+            }
+            return c;
+        }
 
-                        // Recursively verify each file in the filesystem, adding or modifying
-                        resetFilenamePointer();
-                        while(true) {
-                            long batchStartTime=System.currentTimeMillis();
-                            // Get the list of files while building up the attributes
-                            int batchSize=0;
-                            while(batchSize<BATCH_SIZE) {
-                                getNextFilename(fileSetting, fileBackupSettingTable);
-                                String filename=filenames[batchSize]=fileSetting.getFilename();
-                                if(filename==null) break;
-                                backupStat.scanned++;
-                                short backup_level=backup_levels[batchSize]=fileSetting.getBackupLevel().getLevel();
-                                if(backup_level>0) {
-                                    try {
-                                        FileBackupDevice dev=devices[batchSize]=environment.getFileBackupDevice(filename);
-                                        long mode=environment.getStatMode(filename);
-                                        if(dev==null || dev.canBackup() || UnixFile.isDirectory(mode)) {
-                                            paths[batchSize]=filename;
-                                            inodes[batchSize]=environment.getInode(filename);
-                                            packageNums[batchSize]=fileSetting.getPackage().getPkey();
-                                            modes[batchSize]=mode;
-                                            uids[batchSize]=environment.getUID(filename);
-                                            gids[batchSize]=environment.getGID(filename);
-                                            modify_times[batchSize]=UnixFile.isRegularFile(mode)?environment.getModifyTime(filename):-1;
-                                            lengths[batchSize]=UnixFile.isRegularFile(mode)?environment.getFileLength(filename):-1;
-                                            backup_retentions[batchSize]=fileSetting.getBackupRetention().getDays();
-                                            symlink_targets[batchSize]=UnixFile.isSymLink(mode)?environment.readLink(filename):null;
-                                            device_ids[batchSize]=UnixFile.isBlockDevice(mode)||UnixFile.isCharacterDevice(mode)?environment.getDeviceIdentifier(filename):-1;
-                                            batchSize++;
-                                        }
-                                    } catch(IOException err) {
-                                        environment.getErrorHandler().reportError(err, new Object[] {"filename="+filename});
-                                        try {
-                                            Thread.sleep(1000);
-                                        } catch(InterruptedException err2) {
-                                            environment.getErrorHandler().reportWarning(err2, null);
-                                        }
-                                    }
-                                }
-                            }
-                            if(batchSize==0) break;
+        private final BackupEnvironment environment;
+        private final FailoverFileReplication ffr;
+        private Thread thread;
+        private Thread lastThread;
+        
+        final private ErrorHandler errorHandler = new ErrorHandler() {
+            public void reportError(Throwable T, Object[] extraInfo) {
+                if(environment.isErrorEnabled()) environment.error(convertExtraInfo(extraInfo), T);
+            }
 
-                            // Look for attribute matches
-                            Object[] OA=thisServer.findLatestFileBackupSetAttributeMatches(
-                                batchSize,
-                                paths,
-                                devices,
-                                inodes,
-                                packageNums,
-                                modes,
-                                uids,
-                                gids,
-                                modify_times,
-                                backup_levels,
-                                backup_retentions,
-                                lengths,
-                                symlink_targets,
-                                device_ids
-                            );
-                            int[] fileBackups=(int[])OA[0];
-                            int[] backupDatas=(int[])OA[1];
-                            long[] md5_his=(long[])OA[2];
-                            long[] md5_los=(long[])OA[3];
-                            boolean[] hasDatas=(boolean[])OA[4];
-                            // Count the matches and calculate MD5s for regular files not matched
-                            for(int c=0;c<batchSize;c++) {
-                                int pkey=fileBackups[c];
-                                if(pkey!=-1) {
-                                    backupStat.file_backup_attribute_matches++;
-                                    int index=latestFileBackupSet.indexOf(pkey);
-                                    if(index>=0) latestFileBackupSetCompleteds[index]=true;
-                                } else {
-                                    // Calculate the MD5 hash and file lengths if it is a regular file
-                                    if(UnixFile.isRegularFile(modes[c])) {
-                                        try {
-                                            MD5InputStream md5In=new MD5InputStream(
-                                                new BufferedInputStream(
-                                                    environment.getInputStream(filenames[c])
-                                                )
-                                            );
-					    long readLength=0;
-					    long statLength=lengths[c];
-					    try {
-						backupStat.not_matched_md5_files++;
-						// Will at most read up to the number of bytes returned by the previous stat.  This
-						// is good for files that are continually growing, such as log files.
-						byte[] buff=BufferManager.getBytes();
-						try {
-						    while(readLength<statLength) {
-							long bytesLeft=statLength-readLength;
-							if(bytesLeft>BufferManager.BUFFER_SIZE) bytesLeft=BufferManager.BUFFER_SIZE;
-							int ret=md5In.read(buff, 0, (int)bytesLeft);
-							if(ret==-1) break;
-							readLength+=ret;
-						    }
-						} finally {
-						    BufferManager.release(buff);
-						}
-					    } finally {
-						md5In.close();
-					    }
-                                            // If the file is smaller than the statLength, then it was modified and needs to be copied later
-                                            // a null md5 indicates that a copy is required later
-                                            if(readLength==statLength) {
-                                                md5Faileds[c]=false;
-                                                byte[] md5=md5In.hash();
-                                                md5_his[c]=MD5.getMD5Hi(md5);
-                                                md5_los[c]=MD5.getMD5Lo(md5);
-                                            } else {
-                                                md5Faileds[c]=true;
-                                                backupStat.not_matched_md5_failures++;
-                                            }
-                                        } catch(FileNotFoundException err) {
-                                            // Normal when the file is deleted during the backup
-                                            paths[c]=null;
-                                        }
-                                    }
-                                }
-                            }
+            public void reportWarning(Throwable T, Object[] extraInfo) {
+                if(environment.isWarnEnabled()) environment.warn(convertExtraInfo(extraInfo), T);
+            }
+        };
 
-                            // Find or add backup_data
-                            prunedMD5His.clear();
-                            prunedMD5Los.clear();
-                            prunedLengths.clear();
-                            for(int c=0;c<batchSize;c++) {
-                                if(
-                                    paths[c]!=null
-                                    && fileBackups[c]==-1
-                                    && UnixFile.isRegularFile(modes[c])
-                                    && !md5Faileds[c]
-                                ) {
-                                    prunedMD5His.add(md5_his[c]);
-                                    prunedMD5Los.add(md5_los[c]);
-                                    prunedLengths.add(lengths[c]);
-                                }
-                            }
-                            OA=thisServer.findOrAddBackupDatas(
-                                prunedMD5His.size(),
-                                prunedLengths.toArrayLong(),
-                                prunedMD5His.toArrayLong(),
-                                prunedMD5Los.toArrayLong()
-                            );
-                            int[] moreBackupDatas=(int[])OA[0];
-                            boolean[] moreHasDatas=(boolean[])OA[1];
-                            int pos=0;
-                            for(int c=0;c<batchSize;c++) {
-                                if(
-                                    paths[c]!=null
-                                    && fileBackups[c]==-1
-                                    && UnixFile.isRegularFile(modes[c])
-                                    && !md5Faileds[c]
-                                ) {
-                                    backupDatas[c]=moreBackupDatas[pos];
-                                    hasDatas[c]=moreHasDatas[pos++];
-                                }
+        private BackupDaemonThread(BackupEnvironment environment, FailoverFileReplication ffr) {
+            this.environment = environment;
+            this.ffr = ffr;
+        }
+        
+        synchronized private void start() {
+            if(thread==null) {
+                lastThread = null;
+                (thread = new Thread(this)).start();
+            }
+        }
+        
+        synchronized private void stop() {
+            Thread curThread = thread;
+            if(curThread!=null) {
+                lastThread = curThread;
+                thread = null;
+                curThread.interrupt();
+            }
+        }
+        
+        private void join() throws InterruptedException {
+            Thread thread;
+            synchronized(this) {
+                thread = this.lastThread;
+            }
+            if(thread!=null) {
+                thread.join();
+            }
+        }
+
+        /**
+         * Each replication runs in its own thread.  Also, each replication may run concurrently with other replications.
+         * However, each replication may not run concurrently with itself as this could cause problems on the server.
+         */
+        public void run() {
+            final Thread currentThread = Thread.currentThread();
+            while(true) {
+                synchronized(this) {
+                    if(currentThread!=thread) return;
+                }
+                try {
+                    Random random = environment.getRandom();
+                    short retention = ffr.getRetention().getDays();
+
+                    // Get the last start time and success flag from the database (will be cached locally unless an error occurs
+                    long lastStartTime = -1;
+                    boolean lastPassSuccessful = false;
+                    List<FailoverFileLog> ffls = ffr.getFailoverFileLogs(1);
+                    if(!ffls.isEmpty()) {
+                        FailoverFileLog lastLog = ffls.get(0);
+                        if(environment.isDebugEnabled()) environment.debug((retention!=1 ? "Backup: " : "Failover: ") + "lastLog="+lastLog);
+                        lastStartTime = lastLog.getStartTime();
+                        lastPassSuccessful = lastLog.isSuccessful();
+                    }
+                    // Single calendar instance is used
+                    Calendar cal = Calendar.getInstance();
+                    long lastCheckTime = -1;
+                    int lastCheckHour = -1; // The last hour that the schedule was checked
+                    int lastCheckMinute = -1; // The last minute that was checked
+                    while(true) {
+                        synchronized(this) {
+                            if(currentThread!=thread) return;
+                        }
+                        // Sleep then look for the next (possibly missed) schedule
+                        try {
+                            // Sleep some before checking again, this is randomized so schedules don't start exactly as scheduled
+                            // But they should start within 5 minutes of the schedule.  This is because many people
+                            // may schedule for certain times (like 6:00 am exactly)
+                            long sleepyTime = 60*1000 + random.nextInt(4*60*1000);
+                            if(environment.isDebugEnabled()) environment.debug((retention!=1 ? "Backup: " : "Failover: ") + "Sleeping for "+sleepyTime+" milliseconds before checking if backup pass needed.");
+                            Thread.sleep(sleepyTime);
+                        } catch(InterruptedException err) {
+                            // May be interrupted by stop call
+                        }
+                        synchronized(this) {
+                            if(currentThread!=thread) return;
+                        }
+
+                        // Get the latest ffr object (if cache was invalidated) to adhere to changes in enabled flag
+                        FailoverFileReplication newFFR = environment.getConnector().failoverFileReplications.get(ffr.getPkey());
+                        synchronized(this) {
+                            if(currentThread!=thread) return;
+                        }
+
+                        if(newFFR==null) {
+                            // Don't try to run removed ffr
+                            if(environment.isDebugEnabled()) environment.debug((retention!=1 ? "Backup: " : "Failover: ") + "Replication removed");
+                        } else if(!newFFR.getEnabled()) {
+                            // Don't try to run disabled ffr
+                            if(environment.isDebugEnabled()) environment.debug((retention!=1 ? "Backup: " : "Failover: ") + "Replication not enabled");
+                        } else {
+                            long currentTime = System.currentTimeMillis();
+                            cal.setTimeInMillis(currentTime);
+                            int currentHour = cal.get(Calendar.HOUR_OF_DAY);
+                            int currentMinute = cal.get(Calendar.MINUTE);
+
+                            if(environment.isDebugEnabled()) environment.debug((retention!=1 ? "Backup: " : "Failover: ") + "newFFR="+newFFR);
+                            Server thisServer=environment.getThisServer();
+                            if(environment.isDebugEnabled()) environment.debug((retention!=1 ? "Backup: " : "Failover: ") + "thisServer="+thisServer);
+                            AOServer thisAOServer = thisServer.getAOServer();
+                            AOServer failoverServer = thisAOServer==null ? null : thisAOServer.getFailoverServer();
+                            if(environment.isDebugEnabled()) environment.debug((retention!=1 ? "Backup: " : "Failover: ") + "failoverServer="+failoverServer);
+                            AOServer toServer=newFFR.getBackupPartition().getAOServer();
+                            if(environment.isDebugEnabled()) environment.debug((retention!=1 ? "Backup: " : "Failover: ") + "toServer="+toServer);
+                            synchronized(this) {
+                                if(currentThread!=thread) return;
                             }
 
-                            // Send missing backup data
-                        Loop:
-                            for(int c=0;c<batchSize;c++) {
-                                int backupData=backupDatas[c];
-                                if(
-                                    paths[c]!=null
-                                    && backupData!=-1
-                                    && !hasDatas[c]
-                                ) {
-                                    // Look for already added in this batch
-                                    boolean alreadyAdded=false;
-                                    for(int d=0;d<c;d++) {
+                            // Should it run now?
+                            boolean shouldRun;
+                            if(
+                                // Will not replicate if the to server is our parent server in failover mode
+                                toServer.equals(failoverServer)
+                            ) {
+                                shouldRun = false;
+                                if(environment.isDebugEnabled()) environment.debug((retention!=1 ? "Backup: " : "Failover: ") + "Refusing to replication to our failover parent: "+failoverServer);
+                            } else if(
+                                // Never ran before
+                                lastStartTime==-1
+                            ) {
+                                shouldRun = true;
+                                if(environment.isDebugEnabled()) environment.debug((retention!=1 ? "Backup: " : "Failover: ") + "Never ran this mirror");
+                            } else if(
+                                // If the last attempt failed, run now
+                                !lastPassSuccessful
+                            ) {
+                                shouldRun = true;
+                                if(environment.isDebugEnabled()) environment.debug((retention!=1 ? "Backup: " : "Failover: ") + "The last attempt at this mirror failed");
+                            } else if(
+                                // Last pass in the future (time reset)
+                                lastStartTime > currentTime
+                            ) {
+                                shouldRun = false;
+                                if(environment.isDebugEnabled()) environment.debug((retention!=1 ? "Backup: " : "Failover: ") + "Last pass in the future (time reset)");
+                            } else if(
+                                // Last pass more than 24 hours ago (this handles replications without schedules)
+                                (currentTime - lastStartTime)>=(24*60*60*1000)
+                            ) {
+                                shouldRun = true;
+                                if(environment.isDebugEnabled()) environment.debug((retention!=1 ? "Backup: " : "Failover: ") + "Last pass more than 24 hours ago");
+                            } else if(
+                                // The system time was set back
+                                lastCheckTime!=-1 && lastCheckTime>currentTime
+                            ) {
+                                shouldRun = false;
+                                if(environment.isDebugEnabled()) environment.debug((retention!=1 ? "Backup: " : "Failover: ") + "Last check time in the future (time reset)");
+                            } else {
+                                // If there is currently no schedule, this will not flag shouldRun and the check for 24-hours passed (above) will force the backup
+                                List<FailoverFileSchedule> schedules = newFFR.getFailoverFileSchedules();
+                                synchronized(this) {
+                                    if(currentThread!=thread) return;
+                                }
+                                shouldRun = false;
+                                for(FailoverFileSchedule schedule : schedules) {
+                                    if(schedule.isEnabled()) {
+                                        int scheduleHour = schedule.getHour();
+                                        int scheduleMinute = schedule.getMinute();
                                         if(
-                                            backupDatas[d]==backupData
+                                            // Look for exact time match
+                                            currentHour==scheduleHour
+                                            && currentMinute==scheduleMinute
                                         ) {
-                                            alreadyAdded=true;
-                                            hasDatas[c]=hasDatas[d];
+                                            shouldRun = true;
+                                            if(environment.isDebugEnabled()) environment.debug((retention!=1 ? "Backup: " : "Failover: ") + "It is the scheduled time: scheduleHour="+scheduleHour+" and scheduleMiute="+scheduleMinute);
                                             break;
                                         }
+                                    //} else {
+                                    //    if(environment.isDebugEnabled()) environment.debug((retention!=1 ? "Backup: " : "Failover: ") + "Skipping disabled schedule time: scheduleHour="+scheduleHour+" and scheduleMiute="+scheduleMinute);
                                     }
-                                    if(!alreadyAdded) {
-                                        String tempFilename=environment.getNameOfFile(filenames[c]);
-                                        int retries=0;
-                                        boolean committed=false;
-                                        while(retries<environment.getRetryCount()) {
-                                            retries++;
-                                            try {
-                                                InputStream in=environment.getInputStream(filenames[c]);
-						try {
-						    committed=environment.sendData(
-                                                        conn,
-                                                        backupDatas[c],
-                                                        in,
-                                                        tempFilename,
-                                                        lengths[c],
-                                                        md5_his[c],
-                                                        md5_los[c],
-                                                        false,
-                                                        !FileBackup.isCompressedExtension(UnixFile.getExtension(tempFilename))
-                                                    );
-						} finally {
-						    in.close();
-						}
-                                                break;
-                                            } catch(FileNotFoundException err) {
-                                                // Normal if the file was removed during the backup process
-                                                paths[c]=null;
-                                                continue Loop;
-                                            } catch(IOException err) {
-                                                if(retries<environment.getRetryCount()) {
-                                                    environment.getErrorHandler().reportWarning(
-                                                        err,
-                                                        new Object[] {"retries="+retries, "environment.getRetryCount()="+environment.getRetryCount()}
-                                                    );
-                                                } else throw err;
-                                            } catch(SQLException err) {
-                                                if(retries<environment.getRetryCount()) {
-                                                    environment.getErrorHandler().reportWarning(
-                                                        err,
-                                                        new Object[] {"retries="+retries, "environment.getRetryCount()="+environment.getRetryCount()}
-                                                    );
-                                                } else throw err;
-                                            }
-                                            try {
-                                                Thread.sleep(environment.getRetryDelay());
-                                            } catch(InterruptedException err) {
-                                                environment.getErrorHandler().reportWarning(err, null);
-                                            }
+                                }
+                                if(
+                                    !shouldRun // If exact schedule already found, don't need to check here
+                                    && lastCheckTime!=-1 // Don't look for missed schedule if last check time not set
+                                    && (
+                                        // Don't double-check the same minute (in case sleeps inaccurate or time reset)
+                                        lastCheckHour!=currentHour
+                                        || lastCheckMinute!=currentMinute
+                                    )
+                                ) {
+                                    CHECK_LOOP:
+                                    while(true) {
+                                        // Increment minute first
+                                        lastCheckMinute++;
+                                        if(lastCheckMinute>=60) {
+                                            lastCheckMinute=0;
+                                            lastCheckHour++;
+                                            if(lastCheckHour>=24) lastCheckHour=0;
                                         }
-                                        backupStat.send_missing_backup_data_files++;
-                                        if(committed) hasDatas[c]=true;
-                                        else backupStat.send_missing_backup_data_failures++;
-                                    }
-                                }
-                            }
-
-                            // Delete now unused backup data
-                            for(int c=0;c<batchSize;c++) {
-                                if(
-                                    paths[c]!=null
-                                    && backupDatas[c]!=-1
-                                    && !hasDatas[c]
-                                ) {
-                                    backupDatas[c]=-1;
-                                }
-                            }
-
-                            // Make a copy of the file recalculating the length and md5 and resend the data
-                            for(int c=0;c<batchSize;c++) {
-                                if(
-                                    paths[c]!=null
-                                    && UnixFile.isRegularFile(modes[c])
-                                    && !hasDatas[c]
-                                ) {
-                                    backupStat.temp_files++;
-                                    String filename=environment.getNameOfFile(filenames[c]);
-                                    String extension=UnixFile.getExtension(filename);
-                                    boolean shouldCompress=!FileBackup.isCompressedExtension(extension);
-                                    File tempFile=FileList.getTempFile(filename, shouldCompress?"gz":null);
-                                    try {
-					long lengthCopied=0;
-                                        MD5InputStream md5In=new MD5InputStream(
-                                            new BufferedInputStream(
-                                                environment.getInputStream(filenames[c])
-                                            )
-                                        );
-					try {
-					    OutputStream out=
-						shouldCompress?(OutputStream)new GZIPOutputStream(new BufferedOutputStream(new FileOutputStream(tempFile)))
-						    :new BufferedOutputStream(new FileOutputStream(tempFile))
-							;
-					    try {
-						byte[] buff=BufferManager.getBytes();
-						try {
-						    int ret;
-						    while((ret=md5In.read(buff, 0, BufferManager.BUFFER_SIZE))!=-1) {
-							out.write(buff, 0, ret);
-							lengthCopied+=ret;
-						    }
-						} finally {
-						    BufferManager.release(buff);
-						}
-					    } finally {
-						out.flush();
-						out.close();
-					    }
-					} finally {
-					    md5In.close();
-					}
-
-                                        byte[] md5=md5In.hash();
-                                        long md5_hi=md5_his[c]=MD5.getMD5Hi(md5);
-                                        long md5_lo=md5_los[c]=MD5.getMD5Lo(md5);
-                                        lengths[c]=lengthCopied;
-
-                                        // Find existing backup data that matches our snapshot copy of the file
-                                        OA=thisServer.findOrAddBackupData(
-                                            lengthCopied,
-                                            md5_hi,
-                                            md5_lo
-                                        );
-                                        backupDatas[c]=((Integer)OA[0]).intValue();
-                                        hasDatas[c]=((Boolean)OA[1]).booleanValue();
-
-                                        if(!hasDatas[c]) {
-                                            int retries=0;
-                                            boolean committed=false;
-                                            while(retries<environment.getRetryCount()) {
-                                                retries++;
-                                                try {
-                                                    InputStream in=new FileInputStream(tempFile);
-						    try {
-							committed=environment.sendData(
-                                                            conn,
-                                                            backupDatas[c],
-                                                            in,
-                                                            filename,
-                                                            lengthCopied,
-                                                            md5_hi,
-                                                            md5_lo,
-                                                            shouldCompress,
-                                                            shouldCompress
-                                                        );
-						    } finally {
-							in.close();
-						    }
-                                                    break;
-                                                } catch(IOException err) {
-                                                    if(retries<environment.getRetryCount()) {
-                                                        environment.getErrorHandler().reportWarning(
-                                                            err,
-                                                            new Object[] {"retries="+retries, "environment.getRetryCount()="+environment.getRetryCount()}
-                                                        );
-                                                    } else throw err;
-                                                } catch(SQLException err) {
-                                                    if(retries<environment.getRetryCount()) {
-                                                        environment.getErrorHandler().reportWarning(
-                                                            err,
-                                                            new Object[] {"retries="+retries, "environment.getRetryCount()="+environment.getRetryCount()}
-                                                        );
-                                                    } else throw err;
-                                                }
-                                                try {
-                                                    Thread.sleep(environment.getRetryDelay());
-                                                } catch(InterruptedException err) {
-                                                    environment.getErrorHandler().reportWarning(err, null);
+                                        // Current minute already checked above, terminate loop
+                                        if(lastCheckHour==currentHour && lastCheckMinute==currentMinute) break CHECK_LOOP;
+                                        // Look for a missed schedule
+                                        for(FailoverFileSchedule schedule : schedules) {
+                                            if(schedule.isEnabled()) {
+                                                int scheduleHour = schedule.getHour();
+                                                int scheduleMinute = schedule.getMinute();
+                                                if(lastCheckHour==scheduleHour && lastCheckMinute==scheduleMinute) {
+                                                    shouldRun = true;
+                                                    if(environment.isDebugEnabled()) environment.debug((retention!=1 ? "Backup: " : "Failover: ") + "Missed a scheduled time: scheduleHour="+scheduleHour+" and scheduleMiute="+scheduleMinute);
+                                                    break CHECK_LOOP;
                                                 }
                                             }
-                                            backupStat.temp_send_backup_data_files++;
-
-                                            if(committed) hasDatas[c]=true;
-                                            else {
-                                                backupStat.temp_failures++;
-                                                paths[c]=null;
-                                                throw new IOException("The temp copy used to backup a changing file was changed, unable to backup.  Source file: "+filenames[c]+", temp file: "+tempFile.getPath());
-                                            }
                                         }
-                                    } catch(FileNotFoundException err) {
-                                        // Normal if file is removed during the backup process
-                                        paths[c]=null;
-                                    } finally {
-                                        if(!tempFile.delete()) throw new IOException("Unable to delete temp file: "+tempFile.getPath());
                                     }
                                 }
                             }
-
-                            // Delete now unused backup data
-                            for(int c=0;c<batchSize;c++) {
-                                if(
-                                    backupDatas[c]!=-1
-                                    && !hasDatas[c]
-                                ) {
-                                    backupDatas[c]=-1;
+                            lastCheckTime = currentTime;
+                            lastCheckHour = currentHour;
+                            lastCheckMinute = currentMinute;
+                            if(shouldRun) {
+                                synchronized(this) {
+                                    if(currentThread!=thread) return;
                                 }
-                            }
-
-                            // Add all of the new file backups in one transaction
-                            for(int c=0;c<batchSize;c++) {
-                                if(paths[c]!=null && fileBackups[c]==-1) {
-                                    backupStat.added++;
-                                    prunedPaths[c]=paths[c];
-                                } else prunedPaths[c]=null;
-                            }
-                            int[] moreFileBackups=thisServer.addFileBackups(
-                                batchSize,
-                                prunedPaths,
-                                devices,
-                                inodes,
-                                packageNums,
-                                modes,
-                                uids,
-                                gids,
-                                backupDatas,
-                                md5_his,
-                                md5_los,
-                                modify_times,
-                                backup_levels,
-                                backup_retentions,
-                                symlink_targets,
-                                device_ids
-                            );
-                            for(int c=0;c<batchSize;c++) {
-                                if(paths[c]!=null && fileBackups[c]==-1) {
-                                    fileBackups[c]=moreFileBackups[c];
-                                }
-                            }
-
-                            // Sleep for the amount of time it took to process the batch of files
-                            /*
-                            long sleepyTime=(long)((System.currentTimeMillis()-batchStartTime)/(1.5f+random.nextFloat()));
-                            long maxTime=environment.getMaximumBatchSleepTime();
-                            if(sleepyTime<0 || sleepyTime>maxTime) sleepyTime=maxTime;
-                            if(sleepyTime>0) {
                                 try {
-                                    Thread.sleep(sleepyTime);
-                                } catch(InterruptedException err) {
-                                    environment.getErrorHandler().reportWarning(err, null);
+                                    lastStartTime = currentTime;
+                                    lastPassSuccessful = false;
+                                    backupPass(newFFR);
+                                    lastPassSuccessful = true;
+                                } catch(RuntimeException T) {
+                                    if(environment.isErrorEnabled()) environment.error(null, T);
+                                    synchronized(this) {
+                                        if(currentThread!=thread) return;
+                                    }
+                                    //Randomized sleep interval to reduce master load on startup (5-15 minutes)
+                                    int sleepyTime = 5*60*1000 + random.nextInt(10*60*1000);
+                                    if(environment.isDebugEnabled()) environment.debug((retention!=1 ? "Backup: " : "Failover: ") + "Sleeping for "+sleepyTime+" milliseconds after an error");
+                                    try {
+                                        Thread.sleep(sleepyTime); 
+                                    } catch(InterruptedException err) {
+                                        // May be interrupted by stop call
+                                    }
+                                } catch(IOException T) {
+                                    if(environment.isErrorEnabled()) environment.error(null, T);
+                                    synchronized(this) {
+                                        if(currentThread!=thread) return;
+                                    }
+                                    //Randomized sleep interval to reduce master load on startup (5-15 minutes)
+                                    int sleepyTime = 5*60*1000 + random.nextInt(10*60*1000);
+                                    if(environment.isDebugEnabled()) environment.debug((retention!=1 ? "Backup: " : "Failover: ") + "Sleeping for "+sleepyTime+" milliseconds after an error");
+                                    try {
+                                        Thread.sleep(sleepyTime); 
+                                    } catch(InterruptedException err) {
+                                        // May be interrupted by stop call
+                                    }
+                                } catch(SQLException T) {
+                                    if(environment.isErrorEnabled()) environment.error(null, T);
+                                    synchronized(this) {
+                                        if(currentThread!=thread) return;
+                                    }
+                                    //Randomized sleep interval to reduce master load on startup (5-15 minutes)
+                                    int sleepyTime = 5*60*1000 + random.nextInt(10*60*1000);
+                                    if(environment.isDebugEnabled()) environment.debug((retention!=1 ? "Backup: " : "Failover: ") + "Sleeping for "+sleepyTime+" milliseconds after an error");
+                                    try {
+                                        Thread.sleep(sleepyTime); 
+                                    } catch(InterruptedException err) {
+                                        // May be interrupted by stop call
+                                    }
                                 }
-                            }*/
-                        }
-
-                        // Flag those not found as deleted
-                        int size=latestFileBackupSet.size();
-                        final int DELETE_BATCH_SIZE=environment.getDeleteBatchSize();
-                        int[] pkeys=new int[DELETE_BATCH_SIZE];
-                        int pos=0;
-                        for(int c=0;c<size;c++) {
-                            if(!latestFileBackupSetCompleteds[c]) {
-                                pkeys[pos++]=latestFileBackupSet.getInt(c);
-                                if(pos>=DELETE_BATCH_SIZE) {
-                                    fileBackupTable.flagFileBackupsAsDeleted(pos, pkeys);
-                                    backupStat.deleted+=pos;
-                                    pos=0;
-                                }
-                            }
-                        }
-                        if(pos>0) {
-                            fileBackupTable.flagFileBackupsAsDeleted(pos, pkeys);
-                            backupStat.deleted+=pos;
-                        }
-
-                        backupStat.is_successful=true;
-                    } finally {
-                        environment.cleanup();
-                    }
-                } catch(RuntimeException err) {
-                    environment.getErrorHandler().reportError(err, new Object[] {"Caught exception, commiting backup stats."});
-                    throw err;
-                } catch(IOException err) {
-                    environment.getErrorHandler().reportError(err, new Object[] {"Caught exception, commiting backup stats."});
-                    throw err;
-                } catch(SQLException err) {
-                    environment.getErrorHandler().reportError(err, new Object[] {"Caught exception, commiting backup stats."});
-                    throw err;
-                } finally {
-                    backupStat.commit();
-                }
-            } finally {
-                timer.stop();
-            }
-        } finally {
-            Profiler.endProfile(Profiler.SLOW);
-        }
-    }
-
-    public void removeExpiredBackupFiles() throws IOException, SQLException {
-        Profiler.startProfile(Profiler.INSTANTANEOUS, BackupDaemon.class, "removeExpiredBackupFiles()", null);
-        try {
-            environment.getThisServer().removeExpiredFileBackups();
-        } finally {
-            Profiler.endProfile(Profiler.INSTANTANEOUS);
-        }
-    }
-
-    public void run() {
-        Profiler.startProfile(Profiler.UNKNOWN, BackupDaemon.class, "run()", null);
-        try {
-            while(true) {
-                try {
-                    while(true) {
-                        Server thisServer=environment.getThisServer();
-                        long lastBackupTime=thisServer.getLastBackupTime();
-                        if(lastBackupTime!=-1) {
-                            try {
-                                Thread.sleep(environment.getInitialSleepTime());
-                            } catch(InterruptedException err) {
-                                environment.getErrorHandler().reportWarning(err, null);
-                            }
-                            thisServer=environment.getThisServer();
-                            lastBackupTime=thisServer.getLastBackupTime();
-                        }
-                        
-                        // It is time to run if it is the backup hour and the backup has not been run for at least 2 hours
-                        long backupStartTime=System.currentTimeMillis();
-                        if(lastBackupTime==-1 || lastBackupTime>backupStartTime || (backupStartTime-lastBackupTime)>=2L*60*60*1000) {
-                            if(lastBackupTime==-1) runNow();
-                            else {
-                                int backupHour=thisServer.getBackupHour();
-                                Calendar cal=Calendar.getInstance();
-                                cal.setTimeInMillis(backupStartTime);
-                                if(cal.get(Calendar.HOUR_OF_DAY)==backupHour) runNow();
                             }
                         }
                     }
                 } catch(ThreadDeath TD) {
                     throw TD;
                 } catch(Throwable T) {
-                    environment.getErrorHandler().reportError(T, null);
+                    if(environment.isErrorEnabled()) environment.error(null, T);
+                    synchronized(this) {
+                        if(currentThread!=thread) return;
+                    }
+                    //Randomized sleep interval to reduce master load on startup (5-15 minutes)
+                    int sleepyTime = 5*60*1000 + (int)(Math.random()*(10*60*1000));
+                    if(environment.isDebugEnabled()) environment.debug("Sleeping for "+sleepyTime+" milliseconds after an error");
                     try {
-                        Thread.sleep(environment.getMaximumBatchSleepTime());
+                        Thread.sleep(sleepyTime);
                     } catch(InterruptedException err) {
-                        environment.getErrorHandler().reportWarning(err, null);
+                        // May be interrupted by stop call
                     }
                 }
             }
-        } finally {
-            Profiler.endProfile(Profiler.UNKNOWN);
         }
-    }
 
-    public void runNow() throws IOException, SQLException {
-        environment.getThisServer().setLastBackupTime(System.currentTimeMillis());
+        private void backupPass(FailoverFileReplication ffr) throws IOException, SQLException {
+            final Thread currentThread = Thread.currentThread();
 
-        environment.preBackup();
+            environment.preBackup(ffr);
+            synchronized(this) {
+                if(currentThread!=thread) return;
+            }
+            environment.init(ffr);
+            try {
+                synchronized(this) {
+                    if(currentThread!=thread) return;
+                }
+                final Server thisServer = environment.getThisServer();
+                final int failoverBatchSize = environment.getFailoverBatchSize(ffr);
+                final AOServer toServer=ffr.getBackupPartition().getAOServer();
+                final boolean useCompression = ffr.getUseCompression();
+                final short retention = ffr.getRetention().getDays();
+                synchronized(this) {
+                    if(currentThread!=thread) return;
+                }
 
-        backupFileSystem();
-        removeExpiredBackupFiles();
+                if(environment.isDebugEnabled()) environment.debug((retention>1 ? "Backup: " : "Failover: ") + "Running failover from "+thisServer+" to "+toServer);
 
-        environment.postBackup();
-    }
+                Calendar cal = Calendar.getInstance();
+                final long startTime=cal.getTimeInMillis();
 
-    private static boolean started=false;
+                if(environment.isDebugEnabled()) environment.debug((retention>1 ? "Backup: " : "Failover: ") + "useCompression="+useCompression);
+                if(environment.isDebugEnabled()) environment.debug((retention>1 ? "Backup: " : "Failover: ") + "retention="+retention);
 
-    public static void start(BackupEnvironment environment) throws IOException, SQLException {
-        Profiler.startProfile(Profiler.UNKNOWN, BackupDaemon.class, "start(BackupEnvironment)", null);
-        try {
-            if(!started) {
-                synchronized(System.out) {
-                    if(!started) {
-                        System.out.print("Starting BackupDaemon: ");
-                        new Thread(new BackupDaemon(environment)).start();
-                        System.out.println("Done");
-                        started=true;
+                // Keep statistics during the replication
+                int scanned=0;
+                int updated=0;
+                long rawBytesOut=0;
+                long rawBytesIn=0;
+                boolean isSuccessful=false;
+                try {
+                    // Get the connection to the daemon
+                    long key=toServer.requestDaemonAccess(AOServDaemonProtocol.FAILOVER_FILE_REPLICATION, ffr.getPkey());
+                    // Allow the failover connect address to be overridden
+                    String ffrConnectAddress = ffr.getConnectAddress();
+                    // Allow the address to be overridden
+                    String daemonConnectAddress=toServer.getDaemonConnectAddress();
+                    String connectAddress = ffrConnectAddress!=null ? ffrConnectAddress : daemonConnectAddress!=null ? daemonConnectAddress : toServer.getDaemonIPAddress().getIPAddress();
+                    NetBind daemonBind = toServer.getDaemonConnectBind();
+                    NetPort daemonBindPort = daemonBind.getPort();
+                    Protocol daemonBindProtocol = daemonBind.getAppProtocol();
+
+                    // First, the specific source address from ffr is used
+                    String sourceIPAddress = ffr.getConnectFrom();
+                    if(sourceIPAddress==null) {
+                        sourceIPAddress = environment.getDefaultSourceIPAddress();
+                    }
+                    synchronized(this) {
+                        if(currentThread!=thread) return;
+                    }
+
+                    AOServDaemonConnector daemonConnector=AOServDaemonConnector.getConnector(
+                        toServer.getServer().getPkey(),
+                        connectAddress,
+                        sourceIPAddress,
+                        daemonBindPort.getPort(),
+                        daemonBindProtocol.getProtocol(),
+                        null,
+                        toServer.getPoolSize(),
+                        AOPool.DEFAULT_MAX_CONNECTION_AGE,
+                        SSLConnector.class,
+                        SSLConnector.sslProviderLoaded,
+                        AOServClientConfiguration.getSslTruststorePath(),
+                        AOServClientConfiguration.getSslTruststorePassword(),
+                        errorHandler
+                    );
+                    AOServDaemonConnection daemonConn=daemonConnector.getConnection();
+                    try {
+                        synchronized(this) {
+                            if(currentThread!=thread) return;
+                        }
+                        // Start the replication
+                        CompressedDataOutputStream rawOut=daemonConn.getOutputStream();
+
+                        MD5 md5 = useCompression ? new MD5() : null;
+
+                        rawOut.writeCompressedInt(AOServDaemonProtocol.FAILOVER_FILE_REPLICATION);
+                        rawOut.writeLong(key);
+                        rawOut.writeBoolean(useCompression);
+                        rawOut.writeShort(retention);
+
+                        // Determine the date on the from server
+                        final int year = cal.get(Calendar.YEAR);
+                        final int month = cal.get(Calendar.MONTH)+1;
+                        final int day = cal.get(Calendar.DAY_OF_MONTH);
+                        rawOut.writeShort(year);
+                        rawOut.writeShort(month);
+                        rawOut.writeShort(day);
+                        if(retention==1) {
+                            List<String> replicatedMySQLServers = environment.getReplicatedMySQLServers(ffr);
+                            List<String> replicatedMySQLMinorVersions = environment.getReplicatedMySQLMinorVersions(ffr);
+                            int len = replicatedMySQLServers.size();
+                            rawOut.writeCompressedInt(len);
+                            for(int c=0;c<len;c++) {
+                                rawOut.writeUTF(replicatedMySQLServers.get(c));
+                                rawOut.writeUTF(replicatedMySQLMinorVersions.get(c));
+                            }
+                        }
+                        rawOut.flush();
+                        synchronized(this) {
+                            if(currentThread!=thread) return;
+                        }
+
+                        CompressedDataInputStream rawIn=daemonConn.getInputStream();
+                        int result=rawIn.read();
+                        synchronized(this) {
+                            if(currentThread!=thread) return;
+                        }
+                        if(result==AOServDaemonProtocol.NEXT) {
+                            // Setup Compression and/or bandwidth limiting
+                            CompressedDataOutputStream out;
+                            CompressedDataInputStream in;
+                            ByteCountOutputStream rawBytesOutStream;
+                            ByteCountInputStream rawBytesInStream;
+
+                            if(ffr.getBitRate()!=-1) {
+                                // Only the output is limited because input should always be smaller than the output
+                                out = new CompressedDataOutputStream(
+                                    /*bytesOutStream =*/ rawBytesOutStream = new ByteCountOutputStream(
+                                        new BitRateOutputStream(
+                                            rawOut,
+                                            ffr
+                                        )
+                                    )
+                                );
+                            } else {
+                                out = new CompressedDataOutputStream(
+                                    /*bytesOutStream =*/ rawBytesOutStream = new ByteCountOutputStream(
+                                        rawOut
+                                    )
+                                );
+                            }
+                            in = new CompressedDataInputStream(
+                                /*bytesInStream =*/ rawBytesInStream = new ByteCountInputStream(
+                                    rawIn
+                                )
+                            );
+                            try {
+                                // Do requests in batches
+                                String[] filenames = new String[failoverBatchSize];
+                                int[] results = new int[failoverBatchSize];
+                                long[][] md5His = useCompression ? new long[failoverBatchSize][] : null;
+                                long[][] md5Los = useCompression ? new long[failoverBatchSize][] : null;
+                                byte[] buff=BufferManager.getBytes();
+                                byte[] chunkBuffer = new byte[AOServDaemonProtocol.FAILOVER_FILE_REPLICATION_CHUNK_SIZE];
+                                try {
+                                    Iterator<String> filenameIterator = environment.getFilenameIterator(ffr);
+                                    while(true) {
+                                        synchronized(this) {
+                                            if(currentThread!=thread) return;
+                                        }
+                                        int batchSize=0;
+                                        getNextFilenames(filenameIterator, filenames, failoverBatchSize);
+                                        if(batchSize==0) break;
+
+                                        out.writeCompressedInt(batchSize);
+                                        for(int d=0;d<batchSize;d++) {
+                                            scanned++;
+                                            String filename = filenames[d];
+                                            try {
+                                                long mode=environment.getStatMode(ffr, filename);
+                                                if(!UnixFile.isSocket(mode)) {
+                                                    // Get all the values first to avoid FileNotFoundException in middle of protocol
+                                                    boolean isRegularFile = UnixFile.isRegularFile(mode);
+                                                    long size = isRegularFile?environment.getLength(ffr, filename):-1;
+                                                    int uid = environment.getUID(ffr, filename);
+                                                    int gid = environment.getGID(ffr, filename);
+                                                    boolean isSymLink = UnixFile.isSymLink(mode);
+                                                    long modifyTime = isSymLink?-1:environment.getModifyTime(ffr, filename);
+                                                    //if(modifyTime<1000 && !isSymLink && log.isWarnEnabled()) log.warn("Non-symlink modifyTime<1000: "+filename+": "+modifyTime);
+                                                    String symLinkTarget;
+                                                    if(isSymLink) {
+                                                        try {
+                                                            symLinkTarget = environment.readLink(ffr, filename);
+                                                        } catch(SecurityException err) {
+                                                            if(environment.isErrorEnabled()) environment.error("SecurityException trying to readlink: "+filename, err);
+                                                            throw err;
+                                                        } catch(IOException err) {
+                                                            if(environment.isErrorEnabled()) environment.error("IOException trying to readlink: "+filename, err);
+                                                            throw err;
+                                                        }
+                                                    } else {
+                                                        symLinkTarget = null;
+                                                    }
+                                                    boolean isDevice = UnixFile.isBlockDevice(mode) || UnixFile.isCharacterDevice(mode);
+                                                    long deviceID = isDevice?environment.getDeviceIdentifier(ffr, filename):-1;
+
+                                                    out.writeBoolean(true);
+                                                    out.writeCompressedUTF(filename, 0);
+                                                    out.writeLong(mode);
+                                                    if(UnixFile.isRegularFile(mode)) out.writeLong(size);
+                                                    if(uid<0 || uid>65535) {
+                                                        if(environment.isWarnEnabled()) environment.warn(null, new IOException("UID out of range, converted to 0, uid="+uid+" and path="+filename));
+                                                        uid=0;
+                                                    }
+                                                    out.writeCompressedInt(uid);
+                                                    if(gid<0 || gid>65535) {
+                                                        if(environment.isWarnEnabled()) environment.warn(null, new IOException("GID out of range, converted to 0, gid="+gid+" and path="+filename));
+                                                        gid=0;
+                                                    }
+                                                    out.writeCompressedInt(gid);
+                                                    if(!isSymLink) out.writeLong(modifyTime);
+                                                    if(isSymLink) out.writeCompressedUTF(symLinkTarget, 1);
+                                                    else if(isDevice) out.writeLong(deviceID);
+                                                } else {
+                                                    filenames[d]=null;
+                                                    out.writeBoolean(false);
+                                                }
+                                            } catch(FileNotFoundException err) {
+                                                // Normal because of a dynamic file system
+                                                filenames[d]=null;
+                                                out.writeBoolean(false);
+                                            }
+                                        }
+                                        out.flush();
+                                        synchronized(this) {
+                                            if(currentThread!=thread) return;
+                                        }
+
+                                        // Read the results
+                                        result=in.read();
+                                        synchronized(this) {
+                                            if(currentThread!=thread) return;
+                                        }
+                                        boolean hasRequestData = false;
+                                        if(result==AOServDaemonProtocol.NEXT) {
+                                            for(int d=0;d<batchSize;d++) {
+                                                if(filenames[d]!=null) {
+                                                    result = in.read();
+                                                    results[d]=result;
+                                                    if(result==AOServDaemonProtocol.FAILOVER_FILE_REPLICATION_MODIFIED_REQUEST_DATA) {
+                                                        hasRequestData = true;
+                                                    } else if(result==AOServDaemonProtocol.FAILOVER_FILE_REPLICATION_MODIFIED_REQUEST_DATA_CHUNKED) {
+                                                        hasRequestData = true;
+                                                        int chunkCount = in.readCompressedInt();
+                                                        long[] md5Hi = md5His[d] = new long[chunkCount];
+                                                        long[] md5Lo = md5Los[d] = new long[chunkCount];
+                                                        for(int e=0;e<chunkCount;e++) {
+                                                            md5Hi[e]=in.readLong();
+                                                            md5Lo[e]=in.readLong();
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        } else {
+                                            if (result == AOServDaemonProtocol.IO_EXCEPTION) throw new IOException(in.readUTF());
+                                            else if (result == AOServDaemonProtocol.SQL_EXCEPTION) throw new SQLException(in.readUTF());
+                                            else throw new IOException("Unknown result: " + result);
+                                        }
+                                        synchronized(this) {
+                                            if(currentThread!=thread) return;
+                                        }
+
+                                        // Process the results
+                                        //DeflaterOutputStream deflaterOut;
+                                        DataOutputStream outgoing;
+
+                                        if(hasRequestData) {
+                                            //deflaterOut = null;
+                                            outgoing = out;
+                                        } else {
+                                            //deflaterOut = null;
+                                            outgoing = null;
+                                        }
+                                        for(int d=0;d<batchSize;d++) {
+                                            synchronized(this) {
+                                                if(currentThread!=thread) return;
+                                            }
+                                            String filename = filenames[d];
+                                            if(filename!=null) {
+                                                result=results[d];
+                                                if(result==AOServDaemonProtocol.FAILOVER_FILE_REPLICATION_MODIFIED) {
+                                                    if(environment.isDebugEnabled()) environment.debug((retention>1 ? "Backup: " : "Failover: ") + "File modified: "+filename);
+                                                    updated++;
+                                                } else if(result==AOServDaemonProtocol.FAILOVER_FILE_REPLICATION_MODIFIED_REQUEST_DATA) {
+                                                    updated++;
+                                                    try {
+                                                        if(environment.isDebugEnabled()) environment.debug((retention>1 ? "Backup: " : "Failover: ") + "Sending file contents: "+filename);
+                                                        // Shortcut for 0 length files (don't open for reading)
+                                                        if(environment.getLength(ffr, filename)!=0) {
+                                                            InputStream fileIn = environment.getInputStream(ffr, filename);
+                                                            try {
+                                                                int blockLen;
+                                                                while((blockLen=fileIn.read(buff, 0, BufferManager.BUFFER_SIZE))!=-1) {
+                                                                    synchronized(this) {
+                                                                        if(currentThread!=thread) return;
+                                                                    }
+                                                                    if(blockLen>0) {
+                                                                        outgoing.write(AOServDaemonProtocol.NEXT);
+                                                                        outgoing.writeShort(blockLen);
+                                                                        outgoing.write(buff, 0, blockLen);
+                                                                    }
+                                                                }
+                                                            } finally {
+                                                                fileIn.close();
+                                                            }
+                                                        }
+                                                    } catch(FileNotFoundException err) {
+                                                        // Normal when the file was deleted
+                                                    } finally {
+                                                        synchronized(this) {
+                                                            if(currentThread!=thread) return;
+                                                        }
+                                                        outgoing.write(AOServDaemonProtocol.DONE);
+                                                    }
+                                                } else if(result==AOServDaemonProtocol.FAILOVER_FILE_REPLICATION_MODIFIED_REQUEST_DATA_CHUNKED) {
+                                                    updated++;
+                                                    try {
+                                                        if(environment.isDebugEnabled()) environment.debug((retention>1 ? "Backup: " : "Failover: ") + "Chunking file contents: "+filename);
+                                                        long[] md5Hi = md5His[d];
+                                                        long[] md5Lo = md5Los[d];
+                                                        InputStream fileIn=environment.getInputStream(ffr, filename);
+                                                        try {
+                                                            int chunkNumber = 0;
+                                                            int sendChunkCount = 0;
+                                                            while(true) {
+                                                                synchronized(this) {
+                                                                    if(currentThread!=thread) return;
+                                                                }
+                                                                // Read fully one chunk or to end of file
+                                                                int pos=0;
+                                                                while(pos<AOServDaemonProtocol.FAILOVER_FILE_REPLICATION_CHUNK_SIZE) {
+                                                                    int ret = fileIn.read(chunkBuffer, pos, AOServDaemonProtocol.FAILOVER_FILE_REPLICATION_CHUNK_SIZE-pos);
+                                                                    if(ret==-1) break;
+                                                                    pos+=ret;
+                                                                }
+                                                                if(pos>0) {
+                                                                    boolean sendData = true;
+                                                                    if(pos==AOServDaemonProtocol.FAILOVER_FILE_REPLICATION_CHUNK_SIZE && chunkNumber < md5Hi.length) {
+                                                                        // Calculate the MD5 hash
+                                                                        md5.Init();
+                                                                        md5.Update(chunkBuffer, 0, pos);
+                                                                        byte[] md5Bytes = md5.Final();
+                                                                        sendData = md5Hi[chunkNumber]!=MD5.getMD5Hi(md5Bytes) || md5Lo[chunkNumber]!=MD5.getMD5Lo(md5Bytes);
+                                                                        if(sendData) sendChunkCount++;
+                                                                    } else {
+                                                                        // Either incomplete chunk or chunk past those sent by client
+                                                                        sendData = true;
+                                                                    }
+                                                                    if(sendData) {
+                                                                        outgoing.write(AOServDaemonProtocol.NEXT);
+                                                                        outgoing.writeShort(pos);
+                                                                        outgoing.write(chunkBuffer, 0, pos);
+                                                                    } else {
+                                                                        outgoing.write(AOServDaemonProtocol.NEXT_CHUNK);
+                                                                    }
+                                                                }
+                                                                // At end of file when not complete chunk read
+                                                                if(pos!=AOServDaemonProtocol.FAILOVER_FILE_REPLICATION_CHUNK_SIZE) break;
+
+                                                                // Increment chunk number for next iteration
+                                                                chunkNumber++;
+                                                            }
+                                                            if(environment.isDebugEnabled()) environment.debug((retention>1 ? "Backup: " : "Failover: ") + "Chunking file contents: "+filename+": Sent "+sendChunkCount+" out of "+chunkNumber+" chunks");
+                                                        } finally {
+                                                            fileIn.close();
+                                                        }
+                                                    } catch(FileNotFoundException err) {
+                                                        // Normal when the file was deleted
+                                                    } finally {
+                                                        synchronized(this) {
+                                                            if(currentThread!=thread) return;
+                                                        }
+                                                        outgoing.write(AOServDaemonProtocol.DONE);
+                                                    }
+                                                } else if(result!=AOServDaemonProtocol.FAILOVER_FILE_REPLICATION_NO_CHANGE) throw new IOException("Unknown result: "+result);
+                                            }
+                                        }
+
+                                        // Flush any file data that was sent
+                                        if(hasRequestData) {
+                                            synchronized(this) {
+                                                if(currentThread!=thread) return;
+                                            }
+                                            outgoing.flush();
+                                        }
+                                    }
+                                } finally {
+                                    BufferManager.release(buff);
+                                }
+
+                                // Tell the server we are finished
+                                synchronized(this) {
+                                    if(currentThread!=thread) return;
+                                }
+                                out.writeCompressedInt(-1);
+                                out.flush();
+                                synchronized(this) {
+                                    if(currentThread!=thread) return;
+                                }
+                                result=in.read();
+                                if(result!=AOServDaemonProtocol.DONE) {
+                                    if (result == AOServDaemonProtocol.IO_EXCEPTION) throw new IOException(in.readUTF());
+                                    else if (result == AOServDaemonProtocol.SQL_EXCEPTION) throw new SQLException(in.readUTF());
+                                    else throw new IOException("Unknown result: " + result);
+                                }
+                            } finally {
+                                // Store the bytes transferred
+                                rawBytesOut=rawBytesOutStream.getCount();
+                                rawBytesIn=rawBytesInStream.getCount();
+                            }
+                        } else {
+                            if (result == AOServDaemonProtocol.IO_EXCEPTION) throw new IOException(rawIn.readUTF());
+                            else if (result == AOServDaemonProtocol.SQL_EXCEPTION) throw new SQLException(rawIn.readUTF());
+                            else throw new IOException("Unknown result: " + result);
+                        }
+                    } finally {
+                        daemonConn.close(); // Always close to minimize connections on server and handle stop interruption causing interrupted protocol
+                        daemonConnector.releaseConnection(daemonConn);
+                    }
+                    isSuccessful=true;
+                } finally {
+                    // Store the statistics
+                    for(int c=0;c<10;c++) {
+                        // Try in a loop with delay in case master happens to be restarting
+                        try {
+                            ffr.addFailoverFileLog(startTime, System.currentTimeMillis(), scanned, updated, rawBytesOut+rawBytesIn, isSuccessful);
+                            break;
+                        } catch(RuntimeException err) {
+                            if(c>=10) {
+                                environment.error("Error adding failover file log, giving up", err);
+                            } else {
+                                environment.error("Error adding failover file log, will retry in one minute", err);
+                                try {
+                                    Thread.sleep(60*1000);
+                                } catch(InterruptedException err2) {
+                                    environment.warn(null, err2);
+                                }
+                            }
+                        }
                     }
                 }
+            } finally {
+                environment.cleanup(ffr);
             }
-        } finally {
-            Profiler.endProfile(Profiler.UNKNOWN);
+            synchronized(this) {
+                if(currentThread!=thread) return;
+            }
+            environment.postBackup(ffr);
         }
     }
 
     /**
      * Runs the standalone <code>BackupDaemon</code> with the values
-     * provided in <code>com/aoindustries/aoserv/backuo/aoserv-backup.properties</code>.
+     * provided in <code>com/aoindustries/aoserv/backup/aoserv-backup.properties</code>.
      * This will typically be called by the init scripts of the dedicated machine.
      */
     public static void main(String[] args) {
-        // Not profiled because the profiler is not enabled here
-        if(args.length<1 || args.length>2) {
+        if(args.length!=1) {
             try {
                 showUsage();
                 System.exit(1);
@@ -786,72 +925,40 @@ final public class BackupDaemon implements Runnable {
             }
             return;
         } else {
-            if(args[0].equals("daemon") || args[0].equals("run")) {
-                // Load the environment class as provided on the command line
-                BackupEnvironment environment;
-                if(args.length>1) {
-                    try {
-                        environment=(BackupEnvironment)Class.forName(args[1]).newInstance();
-                    } catch(ClassNotFoundException err) {
-                        ErrorPrinter.printStackTraces(err, new Object[] {"environment="+args[1]});
-                        System.exit(2);
-                        return;
-                    } catch(InstantiationException err) {
-                        ErrorPrinter.printStackTraces(err, new Object[] {"environment_classname="+args[1]});
-                        System.exit(3);
-                        return;
-                    } catch(IllegalAccessException err) {
-                        ErrorPrinter.printStackTraces(err, new Object[] {"environment_classname="+args[1]});
-                        System.exit(4);
-                        return;
-                    }
-                } else {
-                    // Try to pick the correct class based on the System properties
-                    if(System.getProperty("os.name").equalsIgnoreCase("Linux")) {
-                        environment=new UnixEnvironment();
-                    } else {
-                        environment=new JavaEnvironment();
-                    }
-                }
+            // Load the environment class as provided on the command line
+            BackupEnvironment environment;
+            try {
+                environment=(BackupEnvironment)Class.forName(args[0]).newInstance();
+            } catch(ClassNotFoundException err) {
+                ErrorPrinter.printStackTraces(err, new Object[] {"environment_classname="+args[0]});
+                System.exit(2);
+                return;
+            } catch(InstantiationException err) {
+                ErrorPrinter.printStackTraces(err, new Object[] {"environment_classname="+args[0]});
+                System.exit(3);
+                return;
+            } catch(IllegalAccessException err) {
+                ErrorPrinter.printStackTraces(err, new Object[] {"environment_classname="+args[0]});
+                System.exit(4);
+                return;
+            }
 
-                if(args[0].equals("daemon")) {
-                    boolean done=false;
-                    while(!done) {
-                        try {
-                            // Start up the daemon
-                            BackupDaemon.start(environment);
-                            done=true;
-                        } catch (ThreadDeath TD) {
-                            throw TD;
-                        } catch (Throwable T) {
-                            environment.getErrorHandler().reportError(T, null);
-                            try {
-                                Thread.sleep(60000);
-                            } catch(InterruptedException err) {
-                                environment.getErrorHandler().reportWarning(err, null);
-                            }
-                        }
-                    }
-                } else if(args[0].equals("run")) {
-                    try {
-                        new BackupDaemon(environment).runNow();
-                    } catch(IOException err) {
-                        environment.getErrorHandler().reportError(err, null);
-                        System.exit(5);
-                        return;
-                    } catch(SQLException err) {
-                        environment.getErrorHandler().reportError(err, null);
-                        System.exit(6);
-                        return;
-                    }
-                } else throw new RuntimeException("Unknown value for args[0]: "+args[0]);
-            } else {
+            boolean done=false;
+            while(!done) {
                 try {
-                    showUsage();
-                    System.exit(1);
-                } catch(IOException err) {
-                    ErrorPrinter.printStackTraces(err);
-                    System.exit(5);
+                    // Start up the daemon
+                    BackupDaemon daemon = new BackupDaemon(environment);
+                    daemon.start();
+                    done=true;
+                } catch (ThreadDeath TD) {
+                    throw TD;
+                } catch (Throwable T) {
+                    environment.error(null, T);
+                    try {
+                        Thread.sleep(60000);
+                    } catch(InterruptedException err) {
+                        environment.warn(null, err);
+                    }
                 }
             }
         }
@@ -864,22 +971,18 @@ final public class BackupDaemon implements Runnable {
         out.print("SYNOPSIS");
         out.attributesOff();
         out.println();
-        out.println("\t"+BackupDaemon.class.getName()+" {daemon|run} [environment_classname]");
+        out.println("\t"+BackupDaemon.class.getName()+" {environment_classname}");
         out.println();
         out.boldOn();
         out.print("DESCRIPTION");
         out.attributesOff();
         out.println();
-        out.println("\tLaunches the backup system in either \"run\" mode or \"daemon\" mode.  In \"run\" mode the");
-        out.println("\tbackup will begin immediately and the process will exit when the backup completes.");
-        out.println("\tIn \"daemon\" mode, the process will continue indefinitely while backing-up files once");
-        out.println("\tper day at the time configured in the servers table.");
+        out.println("\tLaunches the backup system daemon.  The process will continue indefinitely");
+        out.println("\twhile backing-up files as needed.");
         out.println();
-        out.println("\tAn environment_classname may be provided.  If provided, this must be the fully");
-        out.println("\tqualified class name of a "+BackupEnvironment.class.getName()+".");
-        out.println("\tOne instance of this class will be created via the default constructor.  If no");
-        out.println("\tenvironment_classname is provided, an attempt is made to automatically select");
-        out.println("\tthe appropriate class.");
+        out.println("\tAn environment_classname must be provided.  This must be the fully qualified");
+        out.println("\tclass name of a "+BackupEnvironment.class.getName()+".  One instance");
+        out.println("\tof this class will be created via the default constructor.");
         out.println();
         out.flush();
     }
