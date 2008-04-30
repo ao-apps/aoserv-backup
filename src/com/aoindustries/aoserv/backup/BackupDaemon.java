@@ -34,6 +34,7 @@ import com.aoindustries.util.BufferManager;
 import com.aoindustries.util.ErrorHandler;
 import com.aoindustries.util.ErrorPrinter;
 import java.io.DataOutputStream;
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -655,7 +656,9 @@ final public class BackupDaemon {
                                                     long deviceID = isDevice?environment.getDeviceIdentifier(ffr, filename):-1;
 
                                                     out.writeBoolean(true);
-                                                    out.writeCompressedUTF(filename, 0);
+                                                    // Adjust the filename to server formatting
+                                                    String serverPath = environment.getServerPath(ffr, filename);
+                                                    out.writeCompressedUTF(serverPath, 0);
                                                     out.writeLong(mode);
                                                     if(UnixFile.isRegularFile(mode)) out.writeLong(size);
                                                     if(uid<0 || uid>65535) {

@@ -211,4 +211,11 @@ public interface BackupEnvironment {
      * Logs a warn message.
      */
     void warn(Object message, Throwable stack);
+
+    /**
+     * Converts an environment-specific filename into a server path.  The server
+     * path must begin with /, may not contain /../, and must use / as the path
+     * separator.
+     */
+    String getServerPath(FailoverFileReplication ffr, String filename);
 }

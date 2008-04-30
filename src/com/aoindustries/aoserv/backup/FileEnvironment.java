@@ -177,4 +177,13 @@ abstract public class FileEnvironment implements BackupEnvironment {
     public Random getRandom() throws IOException, SQLException {
         return getConnector().getRandom();
     }
+    
+    @Override
+    public String getServerPath(FailoverFileReplication ffr, String filename) {
+        String serverPath;
+        if(filename.length()==0) throw new AssertionError("Empty filename not expected");
+        else if(filename.charAt(0)!=File.separatorChar) serverPath = '/' + filename.replace(File.separatorChar, '/');
+        else serverPath = filename.replace(File.separatorChar, '/');
+        return serverPath;
+    }
 }
