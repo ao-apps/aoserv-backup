@@ -648,13 +648,12 @@ final public class BackupDaemon {
                                 byte[] buff=BufferManager.getBytes();
                                 byte[] chunkBuffer = new byte[AOServDaemonProtocol.FAILOVER_FILE_REPLICATION_CHUNK_SIZE];
                                 try {
-                                    Iterator<String> filenameIterator = environment.getFilenameIterator(ffr);
+                                    final Iterator<String> filenameIterator = environment.getFilenameIterator(ffr);
                                     while(true) {
                                         synchronized(this) {
                                             if(currentThread!=thread) return;
                                         }
-                                        int batchSize=0;
-                                        getNextFilenames(filenameIterator, filenames, failoverBatchSize);
+                                        int batchSize=getNextFilenames(filenameIterator, filenames, failoverBatchSize);
                                         if(batchSize==0) break;
 
                                         out.writeCompressedInt(batchSize);

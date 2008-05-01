@@ -46,7 +46,9 @@ abstract public class UnixFileEnvironment extends FileEnvironment {
     }
 
     protected Stat getStat(FailoverFileReplication ffr, String filename) throws IOException {
+        if(filename==null) throw new AssertionError("filename is null");
         File file = getFile(ffr, filename);
+        if(file==null) throw new AssertionError("file is null");
         synchronized(unixFileCacheLock) {
             Stat lastStat;
             if(file!=lastFiles.get(ffr)) {

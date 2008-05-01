@@ -35,6 +35,7 @@ abstract public class FileEnvironment implements BackupEnvironment {
     private Map<FailoverFileReplication,File> lastFiles = new HashMap<FailoverFileReplication, File>();
 
     protected File getFile(FailoverFileReplication ffr, String filename) {
+        if(filename==null) throw new AssertionError("filename is null");
         synchronized(fileCacheLock) {
             File lastFile;
             if(!filename.equals(lastFilenames.get(ffr))) {
@@ -42,7 +43,7 @@ abstract public class FileEnvironment implements BackupEnvironment {
                 lastFiles.put(ffr, lastFile);
                 lastFilenames.put(ffr, filename);
             } else {
-                lastFile = lastFiles.get(filename);
+                lastFile = lastFiles.get(ffr);
             }
             return lastFile;
         }
