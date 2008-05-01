@@ -34,7 +34,6 @@ import com.aoindustries.util.BufferManager;
 import com.aoindustries.util.ErrorHandler;
 import com.aoindustries.util.ErrorPrinter;
 import java.io.DataOutputStream;
-import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -90,7 +89,7 @@ final public class BackupDaemon {
 
     synchronized private void verifyThreads() throws IOException, SQLException {
         // Ignore events coming in after shutdown
-        if(!isStarted) {
+        if(isStarted) {
             AOServConnector conn = environment.getConnector();
             List<FailoverFileReplication> removedList = new ArrayList<FailoverFileReplication>(threads.keySet());
             for(FailoverFileReplication ffr : conn.failoverFileReplications.getRows()) {
