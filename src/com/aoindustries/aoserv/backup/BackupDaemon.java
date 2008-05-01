@@ -28,6 +28,7 @@ import com.aoindustries.io.CompressedDataOutputStream;
 import com.aoindustries.io.TerminalWriter;
 import com.aoindustries.io.unix.UnixFile;
 import com.aoindustries.md5.MD5;
+import com.aoindustries.sql.SQLUtility;
 import com.aoindustries.table.Table;
 import com.aoindustries.table.TableListener;
 import com.aoindustries.util.BufferManager;
@@ -83,7 +84,39 @@ final public class BackupDaemon {
             AOServConnector conn = environment.getConnector();
             conn.failoverFileReplications.addTableListener(tableListener);
             isStarted = true;
-            verifyThreads();
+            new Thread(
+                new Runnable() {
+                    public void run() {
+                        while(true) {
+                            try {
+                                verifyThreads();
+                                break;
+                            } catch(RuntimeException err) {
+                                environment.error(null, err);
+                                try {
+                                    Thread.sleep(60000);
+                                } catch(InterruptedException err2) {
+                                    environment.warn(null, err2);
+                                }
+                            } catch(IOException err) {
+                                environment.error(null, err);
+                                try {
+                                    Thread.sleep(60000);
+                                } catch(InterruptedException err2) {
+                                    environment.warn(null, err2);
+                                }
+                            } catch(SQLException err) {
+                                environment.error(null, err);
+                                try {
+                                    Thread.sleep(60000);
+                                } catch(InterruptedException err2) {
+                                    environment.warn(null, err2);
+                                }
+                            }
+                        }
+                    }
+                }
+            ).start();
         }
     }
 
@@ -204,12 +237,12 @@ final public class BackupDaemon {
         }
         
         private void join() throws InterruptedException {
-            Thread thread;
+            Thread localThread;
             synchronized(this) {
-                thread = this.lastThread;
+                localThread = this.lastThread;
             }
-            if(thread!=null) {
-                thread.join();
+            if(localThread!=null) {
+                localThread.join();
             }
         }
 
@@ -235,7 +268,9 @@ final public class BackupDaemon {
                         FailoverFileLog lastLog = ffls.get(0);
                         if(environment.isDebugEnabled()) environment.debug((retention!=1 ? "Backup: " : "Failover: ") + "lastLog="+lastLog);
                         lastStartTime = lastLog.getStartTime();
+                        if(environment.isDebugEnabled()) environment.debug((retention!=1 ? "Backup: " : "Failover: ") + "lastStartTime="+SQLUtility.getDateTime(lastStartTime));
                         lastPassSuccessful = lastLog.isSuccessful();
+                        if(environment.isDebugEnabled()) environment.debug((retention!=1 ? "Backup: " : "Failover: ") + "lastPassSuccessful="+lastPassSuccessful);
                     }
                     // Single calendar instance is used
                     Calendar cal = Calendar.getInstance();
