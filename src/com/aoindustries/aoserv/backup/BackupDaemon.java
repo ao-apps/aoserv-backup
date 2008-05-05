@@ -69,9 +69,9 @@ final public class BackupDaemon {
             try {
                 verifyThreads();
             } catch(IOException err) {
-                environment.error(null, err);
+                environment.error(getClass(), "tableUpdated", null, err);
             } catch(SQLException err) {
-                environment.error(null, err);
+                environment.error(getClass(), "tableUpdated", null, err);
             }
         }
     };
@@ -92,25 +92,25 @@ final public class BackupDaemon {
                                 verifyThreads();
                                 break;
                             } catch(RuntimeException err) {
-                                environment.error(null, err);
+                                environment.error(getClass(), "run", null, err);
                                 try {
                                     Thread.sleep(60000);
                                 } catch(InterruptedException err2) {
-                                    environment.warn(null, err2);
+                                    environment.warn(getClass(), "run", null, err2);
                                 }
                             } catch(IOException err) {
-                                environment.error(null, err);
+                                environment.error(getClass(), "run", null, err);
                                 try {
                                     Thread.sleep(60000);
                                 } catch(InterruptedException err2) {
-                                    environment.warn(null, err2);
+                                    environment.warn(getClass(), "run", null, err2);
                                 }
                             } catch(SQLException err) {
-                                environment.error(null, err);
+                                environment.error(getClass(), "run", null, err);
                                 try {
                                     Thread.sleep(60000);
                                 } catch(InterruptedException err2) {
-                                    environment.warn(null, err2);
+                                    environment.warn(getClass(), "run", null, err2);
                                 }
                             }
                         }
@@ -128,7 +128,7 @@ final public class BackupDaemon {
             for(FailoverFileReplication ffr : conn.failoverFileReplications.getRows()) {
                 removedList.remove(ffr);
                 if(!threads.containsKey(ffr)) {
-                    if(environment.isDebugEnabled()) environment.debug("Starting BackupDaemonThread for "+ffr);
+                    if(environment.isDebugEnabled()) environment.debug(getClass(), "verifyThreads", "Starting BackupDaemonThread for "+ffr, null);
                     BackupDaemonThread thread = new BackupDaemonThread(environment, ffr);
                     threads.put(ffr, thread);
                     thread.start();
@@ -136,16 +136,16 @@ final public class BackupDaemon {
             }
             for(FailoverFileReplication ffr : removedList) {
                 BackupDaemonThread thread = threads.get(ffr);
-                if(environment.isDebugEnabled()) environment.debug("Stopping BackupDaemonThread for "+ffr);
+                if(environment.isDebugEnabled()) environment.debug(getClass(), "verifyThreads", "Stopping BackupDaemonThread for "+ffr, null);
                 thread.stop();
             }
             for(FailoverFileReplication ffr : removedList) {
                 BackupDaemonThread thread = threads.remove(ffr);
-                if(environment.isDebugEnabled()) environment.debug("Joining BackupDaemonThread for "+ffr);
+                if(environment.isDebugEnabled()) environment.debug(getClass(), "verifyThreads", "Joining BackupDaemonThread for "+ffr, null);
                 try {
                     thread.join();
                 } catch(InterruptedException err) {
-                    environment.warn(null, err);
+                    environment.warn(getClass(), "verifyThreads", null, err);
                 }
             }
         }
@@ -161,16 +161,16 @@ final public class BackupDaemon {
             isStarted = false;
             // Stop each thread
             for(Map.Entry<FailoverFileReplication,BackupDaemonThread> entry : threads.entrySet()) {
-                if(environment.isDebugEnabled()) environment.debug("Stopping BackupDaemonThread for "+entry.getKey());
+                if(environment.isDebugEnabled()) environment.debug(getClass(), "stop", "Stopping BackupDaemonThread for "+entry.getKey(), null);
                 entry.getValue().stop();
             }
             // Join each thread (wait for actual stop)
             for(Map.Entry<FailoverFileReplication,BackupDaemonThread> entry : threads.entrySet()) {
-                if(environment.isDebugEnabled()) environment.debug("Joining BackupDaemonThread for "+entry.getKey());
+                if(environment.isDebugEnabled()) environment.debug(getClass(), "stop", "Joining BackupDaemonThread for "+entry.getKey(), null);
                 try {
                     entry.getValue().join();
                 } catch(InterruptedException err) {
-                    if(environment.isWarnEnabled()) environment.warn(null, err);
+                    if(environment.isWarnEnabled()) environment.warn(getClass(), "stop", null, err);
                 }
             }
             threads.clear();
@@ -207,11 +207,11 @@ final public class BackupDaemon {
         
         final private ErrorHandler errorHandler = new ErrorHandler() {
             public void reportError(Throwable T, Object[] extraInfo) {
-                if(environment.isErrorEnabled()) environment.error(convertExtraInfo(extraInfo), T);
+                if(environment.isErrorEnabled()) environment.error(getClass(), "reportError", convertExtraInfo(extraInfo), T);
             }
 
             public void reportWarning(Throwable T, Object[] extraInfo) {
-                if(environment.isWarnEnabled()) environment.warn(convertExtraInfo(extraInfo), T);
+                if(environment.isWarnEnabled()) environment.warn(getClass(), "reportWarning", convertExtraInfo(extraInfo), T);
             }
         };
 
@@ -266,11 +266,11 @@ final public class BackupDaemon {
                     List<FailoverFileLog> ffls = ffr.getFailoverFileLogs(1);
                     if(!ffls.isEmpty()) {
                         FailoverFileLog lastLog = ffls.get(0);
-                        if(environment.isDebugEnabled()) environment.debug((retention!=1 ? "Backup: " : "Failover: ") + "lastLog="+lastLog);
+                        if(environment.isDebugEnabled()) environment.debug(getClass(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "lastLog="+lastLog, null);
                         lastStartTime = lastLog.getStartTime();
-                        if(environment.isDebugEnabled()) environment.debug((retention!=1 ? "Backup: " : "Failover: ") + "lastStartTime="+SQLUtility.getDateTime(lastStartTime));
+                        if(environment.isDebugEnabled()) environment.debug(getClass(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "lastStartTime="+SQLUtility.getDateTime(lastStartTime), null);
                         lastPassSuccessful = lastLog.isSuccessful();
-                        if(environment.isDebugEnabled()) environment.debug((retention!=1 ? "Backup: " : "Failover: ") + "lastPassSuccessful="+lastPassSuccessful);
+                        if(environment.isDebugEnabled()) environment.debug(getClass(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "lastPassSuccessful="+lastPassSuccessful, null);
                     }
                     // Single calendar instance is used
                     Calendar cal = Calendar.getInstance();
@@ -286,8 +286,9 @@ final public class BackupDaemon {
                             // Sleep some before checking again, this is randomized so schedules don't start exactly as scheduled
                             // But they should start within 5 minutes of the schedule.  This is because many people
                             // may schedule for certain times (like 6:00 am exactly)
-                            long sleepyTime = 60*1000 + random.nextInt(4*60*1000);
-                            if(environment.isDebugEnabled()) environment.debug((retention!=1 ? "Backup: " : "Failover: ") + "Sleeping for "+sleepyTime+" milliseconds before checking if backup pass needed.");
+                            //long sleepyTime = 60*1000 + random.nextInt(4*60*1000);
+                            long sleepyTime = 55*1000;
+                            if(environment.isDebugEnabled()) environment.debug(getClass(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "Sleeping for "+sleepyTime+" milliseconds before checking if backup pass needed.", null);
                             Thread.sleep(sleepyTime);
                         } catch(InterruptedException err) {
                             // May be interrupted by stop call
@@ -304,24 +305,24 @@ final public class BackupDaemon {
 
                         if(newFFR==null) {
                             // Don't try to run removed ffr
-                            if(environment.isDebugEnabled()) environment.debug((retention!=1 ? "Backup: " : "Failover: ") + "Replication removed");
+                            if(environment.isDebugEnabled()) environment.debug(getClass(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "Replication removed", null);
                         } else if(!newFFR.getEnabled()) {
                             // Don't try to run disabled ffr
-                            if(environment.isDebugEnabled()) environment.debug((retention!=1 ? "Backup: " : "Failover: ") + "Replication not enabled");
+                            if(environment.isDebugEnabled()) environment.debug(getClass(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "Replication not enabled", null);
                         } else {
                             long currentTime = System.currentTimeMillis();
                             cal.setTimeInMillis(currentTime);
                             int currentHour = cal.get(Calendar.HOUR_OF_DAY);
                             int currentMinute = cal.get(Calendar.MINUTE);
 
-                            if(environment.isDebugEnabled()) environment.debug((retention!=1 ? "Backup: " : "Failover: ") + "newFFR="+newFFR);
+                            if(environment.isDebugEnabled()) environment.debug(getClass(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "newFFR="+newFFR, null);
                             Server thisServer=environment.getThisServer();
-                            if(environment.isDebugEnabled()) environment.debug((retention!=1 ? "Backup: " : "Failover: ") + "thisServer="+thisServer);
+                            if(environment.isDebugEnabled()) environment.debug(getClass(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "thisServer="+thisServer, null);
                             AOServer thisAOServer = thisServer.getAOServer();
                             AOServer failoverServer = thisAOServer==null ? null : thisAOServer.getFailoverServer();
-                            if(environment.isDebugEnabled()) environment.debug((retention!=1 ? "Backup: " : "Failover: ") + "failoverServer="+failoverServer);
+                            if(environment.isDebugEnabled()) environment.debug(getClass(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "failoverServer="+failoverServer, null);
                             AOServer toServer=newFFR.getBackupPartition().getAOServer();
-                            if(environment.isDebugEnabled()) environment.debug((retention!=1 ? "Backup: " : "Failover: ") + "toServer="+toServer);
+                            if(environment.isDebugEnabled()) environment.debug(getClass(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "toServer="+toServer, null);
                             synchronized(this) {
                                 if(currentThread!=thread) return;
                             }
@@ -333,37 +334,37 @@ final public class BackupDaemon {
                                 toServer.equals(failoverServer)
                             ) {
                                 shouldRun = false;
-                                if(environment.isDebugEnabled()) environment.debug((retention!=1 ? "Backup: " : "Failover: ") + "Refusing to replication to our failover parent: "+failoverServer);
+                                if(environment.isDebugEnabled()) environment.debug(getClass(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "Refusing to replication to our failover parent: "+failoverServer, null);
                             } else if(
                                 // Never ran before
                                 lastStartTime==-1
                             ) {
                                 shouldRun = true;
-                                if(environment.isDebugEnabled()) environment.debug((retention!=1 ? "Backup: " : "Failover: ") + "Never ran this mirror");
+                                if(environment.isDebugEnabled()) environment.debug(getClass(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "Never ran this mirror", null);
                             } else if(
                                 // If the last attempt failed, run now
                                 !lastPassSuccessful
                             ) {
                                 shouldRun = true;
-                                if(environment.isDebugEnabled()) environment.debug((retention!=1 ? "Backup: " : "Failover: ") + "The last attempt at this mirror failed");
+                                if(environment.isDebugEnabled()) environment.debug(getClass(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "The last attempt at this mirror failed",null);
                             } else if(
                                 // Last pass in the future (time reset)
                                 lastStartTime > currentTime
                             ) {
                                 shouldRun = false;
-                                if(environment.isDebugEnabled()) environment.debug((retention!=1 ? "Backup: " : "Failover: ") + "Last pass in the future (time reset)");
+                                if(environment.isDebugEnabled()) environment.debug(getClass(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "Last pass in the future (time reset)", null);
                             } else if(
                                 // Last pass more than 24 hours ago (this handles replications without schedules)
                                 (currentTime - lastStartTime)>=(24*60*60*1000)
                             ) {
                                 shouldRun = true;
-                                if(environment.isDebugEnabled()) environment.debug((retention!=1 ? "Backup: " : "Failover: ") + "Last pass more than 24 hours ago");
+                                if(environment.isDebugEnabled()) environment.debug(getClass(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "Last pass more than 24 hours ago", null);
                             } else if(
                                 // The system time was set back
                                 lastCheckTime!=-1 && lastCheckTime>currentTime
                             ) {
                                 shouldRun = false;
-                                if(environment.isDebugEnabled()) environment.debug((retention!=1 ? "Backup: " : "Failover: ") + "Last check time in the future (time reset)");
+                                if(environment.isDebugEnabled()) environment.debug(getClass(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "Last check time in the future (time reset)", null);
                             } else {
                                 // If there is currently no schedule, this will not flag shouldRun and the check for 24-hours passed (above) will force the backup
                                 List<FailoverFileSchedule> schedules = newFFR.getFailoverFileSchedules();
@@ -381,7 +382,7 @@ final public class BackupDaemon {
                                             && currentMinute==scheduleMinute
                                         ) {
                                             shouldRun = true;
-                                            if(environment.isDebugEnabled()) environment.debug((retention!=1 ? "Backup: " : "Failover: ") + "It is the scheduled time: scheduleHour="+scheduleHour+" and scheduleMiute="+scheduleMinute);
+                                            if(environment.isDebugEnabled()) environment.debug(getClass(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "It is the scheduled time: scheduleHour="+scheduleHour+" and scheduleMiute="+scheduleMinute, null);
                                             break;
                                         }
                                     //} else {
@@ -415,8 +416,7 @@ final public class BackupDaemon {
                                                 int scheduleMinute = schedule.getMinute();
                                                 if(lastCheckHour==scheduleHour && lastCheckMinute==scheduleMinute) {
                                                     shouldRun = true;
-                                                    if(environment.isDebugEnabled()) environment.debug((retention!=1 ? "Backup: " : "Failover: ") + "Missed a scheduled time: scheduleHour="+scheduleHour+" and scheduleMiute="+scheduleMinute);
-                                                    break CHECK_LOOP;
+                                                    if(environment.isDebugEnabled()) environment.debug(getClass(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "Missed a scheduled time: scheduleHour="+scheduleHour+" and scheduleMiute="+scheduleMinute, null);                                                    break CHECK_LOOP;
                                                 }
                                             }
                                         }
@@ -436,39 +436,39 @@ final public class BackupDaemon {
                                     backupPass(newFFR);
                                     lastPassSuccessful = true;
                                 } catch(RuntimeException T) {
-                                    if(environment.isErrorEnabled()) environment.error(null, T);
+                                    if(environment.isErrorEnabled()) environment.error(getClass(), "run", null, T);
                                     synchronized(this) {
                                         if(currentThread!=thread) return;
                                     }
                                     //Randomized sleep interval to reduce master load on startup (5-15 minutes)
                                     int sleepyTime = 5*60*1000 + random.nextInt(10*60*1000);
-                                    if(environment.isDebugEnabled()) environment.debug((retention!=1 ? "Backup: " : "Failover: ") + "Sleeping for "+sleepyTime+" milliseconds after an error");
+                                    if(environment.isDebugEnabled()) environment.debug(getClass(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "Sleeping for "+sleepyTime+" milliseconds after an error", null);
                                     try {
                                         Thread.sleep(sleepyTime); 
                                     } catch(InterruptedException err) {
                                         // May be interrupted by stop call
                                     }
                                 } catch(IOException T) {
-                                    if(environment.isErrorEnabled()) environment.error(null, T);
+                                    if(environment.isErrorEnabled()) environment.error(getClass(), "run", null, T);
                                     synchronized(this) {
                                         if(currentThread!=thread) return;
                                     }
                                     //Randomized sleep interval to reduce master load on startup (5-15 minutes)
                                     int sleepyTime = 5*60*1000 + random.nextInt(10*60*1000);
-                                    if(environment.isDebugEnabled()) environment.debug((retention!=1 ? "Backup: " : "Failover: ") + "Sleeping for "+sleepyTime+" milliseconds after an error");
+                                    if(environment.isDebugEnabled()) environment.debug(getClass(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "Sleeping for "+sleepyTime+" milliseconds after an error", null);
                                     try {
                                         Thread.sleep(sleepyTime); 
                                     } catch(InterruptedException err) {
                                         // May be interrupted by stop call
                                     }
                                 } catch(SQLException T) {
-                                    if(environment.isErrorEnabled()) environment.error(null, T);
+                                    if(environment.isErrorEnabled()) environment.error(getClass(), "run", null, T);
                                     synchronized(this) {
                                         if(currentThread!=thread) return;
                                     }
                                     //Randomized sleep interval to reduce master load on startup (5-15 minutes)
                                     int sleepyTime = 5*60*1000 + random.nextInt(10*60*1000);
-                                    if(environment.isDebugEnabled()) environment.debug((retention!=1 ? "Backup: " : "Failover: ") + "Sleeping for "+sleepyTime+" milliseconds after an error");
+                                    if(environment.isDebugEnabled()) environment.debug(getClass(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "Sleeping for "+sleepyTime+" milliseconds after an error", null);
                                     try {
                                         Thread.sleep(sleepyTime); 
                                     } catch(InterruptedException err) {
@@ -481,13 +481,13 @@ final public class BackupDaemon {
                 } catch(ThreadDeath TD) {
                     throw TD;
                 } catch(Throwable T) {
-                    if(environment.isErrorEnabled()) environment.error(null, T);
+                    if(environment.isErrorEnabled()) environment.error(getClass(), "run", null, T);
                     synchronized(this) {
                         if(currentThread!=thread) return;
                     }
                     //Randomized sleep interval to reduce master load on startup (5-15 minutes)
                     int sleepyTime = 5*60*1000 + (int)(Math.random()*(10*60*1000));
-                    if(environment.isDebugEnabled()) environment.debug("Sleeping for "+sleepyTime+" milliseconds after an error");
+                    if(environment.isDebugEnabled()) environment.debug(getClass(), "run", "Sleeping for "+sleepyTime+" milliseconds after an error", null);
                     try {
                         Thread.sleep(sleepyTime);
                     } catch(InterruptedException err) {
@@ -518,13 +518,13 @@ final public class BackupDaemon {
                     if(currentThread!=thread) return;
                 }
 
-                if(environment.isDebugEnabled()) environment.debug((retention>1 ? "Backup: " : "Failover: ") + "Running failover from "+thisServer+" to "+toServer);
+                if(environment.isDebugEnabled()) environment.debug(getClass(), "backupPass", (retention>1 ? "Backup: " : "Failover: ") + "Running failover from "+thisServer+" to "+toServer, null);
 
                 Calendar cal = Calendar.getInstance();
                 final long startTime=cal.getTimeInMillis();
 
-                if(environment.isDebugEnabled()) environment.debug((retention>1 ? "Backup: " : "Failover: ") + "useCompression="+useCompression);
-                if(environment.isDebugEnabled()) environment.debug((retention>1 ? "Backup: " : "Failover: ") + "retention="+retention);
+                if(environment.isDebugEnabled()) environment.debug(getClass(), "backupPass", (retention>1 ? "Backup: " : "Failover: ") + "useCompression="+useCompression, null);
+                if(environment.isDebugEnabled()) environment.debug(getClass(), "backupPass", (retention>1 ? "Backup: " : "Failover: ") + "retention="+retention, null);
 
                 // Keep statistics during the replication
                 int scanned=0;
@@ -676,10 +676,10 @@ final public class BackupDaemon {
                                                         try {
                                                             symLinkTarget = environment.readLink(ffr, filename);
                                                         } catch(SecurityException err) {
-                                                            if(environment.isErrorEnabled()) environment.error("SecurityException trying to readlink: "+filename, err);
+                                                            if(environment.isErrorEnabled()) environment.error(getClass(), "backupPass", "SecurityException trying to readlink: "+filename, err);
                                                             throw err;
                                                         } catch(IOException err) {
-                                                            if(environment.isErrorEnabled()) environment.error("IOException trying to readlink: "+filename, err);
+                                                            if(environment.isErrorEnabled()) environment.error(getClass(), "backupPass", "IOException trying to readlink: "+filename, err);
                                                             throw err;
                                                         }
                                                     } else {
@@ -695,12 +695,12 @@ final public class BackupDaemon {
                                                     out.writeLong(mode);
                                                     if(UnixFile.isRegularFile(mode)) out.writeLong(size);
                                                     if(uid<0 || uid>65535) {
-                                                        if(environment.isWarnEnabled()) environment.warn(null, new IOException("UID out of range, converted to 0, uid="+uid+" and path="+filename));
+                                                        if(environment.isWarnEnabled()) environment.warn(getClass(), "backupPass", null, new IOException("UID out of range, converted to 0, uid="+uid+" and path="+filename));
                                                         uid=0;
                                                     }
                                                     out.writeCompressedInt(uid);
                                                     if(gid<0 || gid>65535) {
-                                                        if(environment.isWarnEnabled()) environment.warn(null, new IOException("GID out of range, converted to 0, gid="+gid+" and path="+filename));
+                                                        if(environment.isWarnEnabled()) environment.warn(getClass(), "backupPass", null, new IOException("GID out of range, converted to 0, gid="+gid+" and path="+filename));
                                                         gid=0;
                                                     }
                                                     out.writeCompressedInt(gid);
@@ -775,12 +775,12 @@ final public class BackupDaemon {
                                             if(filename!=null) {
                                                 result=results[d];
                                                 if(result==AOServDaemonProtocol.FAILOVER_FILE_REPLICATION_MODIFIED) {
-                                                    if(environment.isDebugEnabled()) environment.debug((retention>1 ? "Backup: " : "Failover: ") + "File modified: "+filename);
+                                                    if(environment.isDebugEnabled()) environment.debug(getClass(), "backupPass", (retention>1 ? "Backup: " : "Failover: ") + "File modified: "+filename, null);
                                                     updated++;
                                                 } else if(result==AOServDaemonProtocol.FAILOVER_FILE_REPLICATION_MODIFIED_REQUEST_DATA) {
                                                     updated++;
                                                     try {
-                                                        if(environment.isDebugEnabled()) environment.debug((retention>1 ? "Backup: " : "Failover: ") + "Sending file contents: "+filename);
+                                                        if(environment.isDebugEnabled()) environment.debug(getClass(), "backupPass", (retention>1 ? "Backup: " : "Failover: ") + "Sending file contents: "+filename, null);
                                                         // Shortcut for 0 length files (don't open for reading)
                                                         if(environment.getLength(ffr, filename)!=0) {
                                                             InputStream fileIn = environment.getInputStream(ffr, filename);
@@ -811,7 +811,7 @@ final public class BackupDaemon {
                                                 } else if(result==AOServDaemonProtocol.FAILOVER_FILE_REPLICATION_MODIFIED_REQUEST_DATA_CHUNKED) {
                                                     updated++;
                                                     try {
-                                                        if(environment.isDebugEnabled()) environment.debug((retention>1 ? "Backup: " : "Failover: ") + "Chunking file contents: "+filename);
+                                                        if(environment.isDebugEnabled()) environment.debug(getClass(), "backupPass", (retention>1 ? "Backup: " : "Failover: ") + "Chunking file contents: "+filename, null);
                                                         long[] md5Hi = md5His[d];
                                                         long[] md5Lo = md5Los[d];
                                                         InputStream fileIn=environment.getInputStream(ffr, filename);
@@ -856,7 +856,7 @@ final public class BackupDaemon {
                                                                 // Increment chunk number for next iteration
                                                                 chunkNumber++;
                                                             }
-                                                            if(environment.isDebugEnabled()) environment.debug((retention>1 ? "Backup: " : "Failover: ") + "Chunking file contents: "+filename+": Sent "+sendChunkCount+" out of "+chunkNumber+" chunks");
+                                                            if(environment.isDebugEnabled()) environment.debug(getClass(), "backupPass", (retention>1 ? "Backup: " : "Failover: ") + "Chunking file contents: "+filename+": Sent "+sendChunkCount+" out of "+chunkNumber+" chunks", null);
                                                         } finally {
                                                             fileIn.close();
                                                         }
@@ -923,13 +923,13 @@ final public class BackupDaemon {
                             break;
                         } catch(RuntimeException err) {
                             if(c>=10) {
-                                environment.error("Error adding failover file log, giving up", err);
+                                environment.error(getClass(), "backupPass", "Error adding failover file log, giving up", err);
                             } else {
-                                environment.error("Error adding failover file log, will retry in one minute", err);
+                                environment.error(getClass(), "backupPass", "Error adding failover file log, will retry in one minute", err);
                                 try {
                                     Thread.sleep(60*1000);
                                 } catch(InterruptedException err2) {
-                                    environment.warn(null, err2);
+                                    environment.warn(getClass(), "backupPass", null, err2);
                                 }
                             }
                         }
@@ -989,11 +989,11 @@ final public class BackupDaemon {
                 } catch (ThreadDeath TD) {
                     throw TD;
                 } catch (Throwable T) {
-                    environment.error(null, T);
+                    environment.error(BackupDaemon.class, "main", null, T);
                     try {
                         Thread.sleep(60000);
                     } catch(InterruptedException err) {
-                        environment.warn(null, err);
+                        environment.warn(BackupDaemon.class, "main", null, err);
                     }
                 }
             }

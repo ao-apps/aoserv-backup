@@ -175,12 +175,7 @@ public interface BackupEnvironment {
     /**
      * Logs a debug message.
      */
-    void debug(Object message);
-
-    /**
-     * Logs a debug message.
-     */
-    void debug(Object message, Throwable stack);
+    void debug(Class clazz, String method, Object message, Throwable throwable);
 
     /**
      * Determines if error logging is currently enabled.
@@ -190,12 +185,7 @@ public interface BackupEnvironment {
     /**
      * Logs an error message.
      */
-    void error(Object message);
-
-    /**
-     * Logs an error message.
-     */
-    void error(Object message, Throwable stack);
+    void error(Class clazz, String method, Object message, Throwable throwable);
 
     /**
      * Determines if warning logging is currently enabled.
@@ -205,12 +195,7 @@ public interface BackupEnvironment {
     /**
      * Logs a warn message.
      */
-    void warn(Object message);
-
-    /**
-     * Logs a warn message.
-     */
-    void warn(Object message, Throwable stack);
+    void warn(Class clazz, String method, Object message, Throwable throwable);
 
     /**
      * Converts an environment-specific filename into a server path.  The server
