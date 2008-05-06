@@ -52,8 +52,8 @@ abstract public class FileEnvironment implements BackupEnvironment {
     @Override
     public long getStatMode(FailoverFileReplication ffr, String filename) throws IOException {
         File file=getFile(ffr, filename);
-        if(file.isDirectory()) return UnixFile.IS_DIRECTORY|0x750;
-        if(file.isFile()) return UnixFile.IS_REGULAR_FILE|0x640;
+        if(file.isDirectory()) return UnixFile.IS_DIRECTORY|0750;
+        if(file.isFile()) return UnixFile.IS_REGULAR_FILE|0640;
         return 0;
     }
 
