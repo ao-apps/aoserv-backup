@@ -123,9 +123,10 @@ final public class BackupDaemon {
     synchronized private void verifyThreads() throws IOException, SQLException {
         // Ignore events coming in after shutdown
         if(isStarted) {
-            AOServConnector conn = environment.getConnector();
+            Server thisServer = environment.getThisServer();
+            //AOServConnector conn = environment.getConnector();
             List<FailoverFileReplication> removedList = new ArrayList<FailoverFileReplication>(threads.keySet());
-            for(FailoverFileReplication ffr : conn.failoverFileReplications.getRows()) {
+            for(FailoverFileReplication ffr : thisServer.getFailoverFileReplications()) {
                 removedList.remove(ffr);
                 if(!threads.containsKey(ffr)) {
                     if(environment.isDebugEnabled()) environment.debug(getClass(), "verifyThreads", "Starting BackupDaemonThread for "+ffr, null);
