@@ -28,4 +28,16 @@ abstract public class WindowsEnvironment extends FileEnvironment {
         Map<String,FilesystemIteratorRule> filesystemPrefixRules = new HashMap<String, FilesystemIteratorRule>();
         return filesystemPrefixRules;
     }
+
+    /**
+     * Because some of the backup servers use ext2/ext3 filesystems, which have only one-second
+     * time accuracy, timestamps are rounded down to the nearest second.  (Truncates the milliseconds component)
+     * When all servers support more granular file timestamps, or if we store the more
+     * accurate timestamps in extended attributes, then we can remove this for potentially greater
+     * accuracy in detecting file changes.
+     */
+    @Override
+    public long getModifyTime(FailoverFileReplication ffr, String filename) throws IOException {
+        return (super.getModifyTime(ffr, filename)/1000) * 1000;
+    }
 }
