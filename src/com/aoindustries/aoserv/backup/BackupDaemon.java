@@ -383,11 +383,11 @@ final public class BackupDaemon {
                                             && currentMinute==scheduleMinute
                                         ) {
                                             shouldRun = true;
-                                            if(environment.isDebugEnabled()) environment.debug(getClass(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "It is the scheduled time: scheduleHour="+scheduleHour+" and scheduleMiute="+scheduleMinute, null);
+                                            if(environment.isDebugEnabled()) environment.debug(getClass(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "It is the scheduled time: scheduleHour="+scheduleHour+" and scheduleMinute="+scheduleMinute, null);
                                             break;
                                         }
                                     //} else {
-                                    //    if(environment.isDebugEnabled()) environment.debug((retention!=1 ? "Backup: " : "Failover: ") + "Skipping disabled schedule time: scheduleHour="+scheduleHour+" and scheduleMiute="+scheduleMinute);
+                                    //    if(environment.isDebugEnabled()) environment.debug((retention!=1 ? "Backup: " : "Failover: ") + "Skipping disabled schedule time: scheduleHour="+scheduleHour+" and scheduleMinute="+scheduleMinute);
                                     }
                                 }
                                 if(
@@ -417,7 +417,7 @@ final public class BackupDaemon {
                                                 int scheduleMinute = schedule.getMinute();
                                                 if(lastCheckHour==scheduleHour && lastCheckMinute==scheduleMinute) {
                                                     shouldRun = true;
-                                                    if(environment.isDebugEnabled()) environment.debug(getClass(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "Missed a scheduled time: scheduleHour="+scheduleHour+" and scheduleMiute="+scheduleMinute, null);                                                    break CHECK_LOOP;
+                                                    if(environment.isDebugEnabled()) environment.debug(getClass(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "Missed a scheduled time: scheduleHour="+scheduleHour+" and scheduleMinute="+scheduleMinute, null);                                                    break CHECK_LOOP;
                                                 }
                                             }
                                         }
