@@ -178,6 +178,11 @@ final public class BackupDaemon {
         }
     }
 
+    synchronized public void runNow(FailoverFileReplication ffr) {
+        BackupDaemonThread thread = threads.get(ffr);
+        if(thread==null) thread.runNow();
+    }
+
     private static class BackupDaemonThread implements Runnable {
 
         private static String convertExtraInfo(Object[] extraInfo) {
@@ -203,9 +208,10 @@ final public class BackupDaemon {
 
         private final BackupEnvironment environment;
         private final FailoverFileReplication ffr;
+        volatile private boolean runNow;
         private Thread thread;
         private Thread lastThread;
-        
+
         final private ErrorHandler errorHandler = new ErrorHandler() {
             public void reportError(Throwable T, Object[] extraInfo) {
                 if(environment.isErrorEnabled()) environment.error(getClass(), "reportError", convertExtraInfo(extraInfo), T);
@@ -237,6 +243,13 @@ final public class BackupDaemon {
             }
         }
         
+        synchronized private void runNow() {
+            Thread curThread = thread;
+            if(curThread!=null) {
+                runNow = true;
+            }
+        }
+
         private void join() throws InterruptedException {
             Thread localThread;
             synchronized(this) {
@@ -283,16 +296,18 @@ final public class BackupDaemon {
                             if(currentThread!=thread) return;
                         }
                         // Sleep then look for the next (possibly missed) schedule
-                        try {
-                            // Sleep some before checking again, this is randomized so schedules don't start exactly as scheduled
-                            // But they should start within 5 minutes of the schedule.  This is because many people
-                            // may schedule for certain times (like 6:00 am exactly)
-                            //long sleepyTime = 60*1000 + random.nextInt(4*60*1000);
-                            long sleepyTime = 55*1000;
-                            if(environment.isDebugEnabled()) environment.debug(getClass(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "Sleeping for "+sleepyTime+" milliseconds before checking if backup pass needed.", null);
-                            Thread.sleep(sleepyTime);
-                        } catch(InterruptedException err) {
-                            // May be interrupted by stop call
+                        if(!runNow) {
+                            try {
+                                // Sleep some before checking again, this is randomized so schedules don't start exactly as scheduled
+                                // But they should start within 5 minutes of the schedule.  This is because many people
+                                // may schedule for certain times (like 6:00 am exactly)
+                                //long sleepyTime = 60*1000 + random.nextInt(4*60*1000);
+                                long sleepyTime = 55*1000;
+                                if(environment.isDebugEnabled()) environment.debug(getClass(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "Sleeping for "+sleepyTime+" milliseconds before checking if backup pass needed.", null);
+                                Thread.sleep(sleepyTime);
+                            } catch(InterruptedException err) {
+                                // May be interrupted by stop call
+                            }
                         }
                         synchronized(this) {
                             if(currentThread!=thread) return;
@@ -336,6 +351,10 @@ final public class BackupDaemon {
                             ) {
                                 shouldRun = false;
                                 if(environment.isDebugEnabled()) environment.debug(getClass(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "Refusing to replication to our failover parent: "+failoverServer, null);
+                            } else if(runNow) {
+                                shouldRun = true;
+                                runNow = false;
+                                if(environment.isDebugEnabled()) environment.debug(getClass(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "runNow causing immediate run of backup", null);
                             } else if(
                                 // Never ran before
                                 lastStartTime==-1
@@ -434,7 +453,11 @@ final public class BackupDaemon {
                                 try {
                                     lastStartTime = currentTime;
                                     lastPassSuccessful = false;
-                                    backupPass(newFFR);
+                                    try {
+                                        backupPass(newFFR);
+                                    } finally {
+                                        runNow = false;
+                                    }
                                     lastPassSuccessful = true;
                                 } catch(RuntimeException T) {
                                     if(environment.isErrorEnabled()) environment.error(getClass(), "run", null, T);
