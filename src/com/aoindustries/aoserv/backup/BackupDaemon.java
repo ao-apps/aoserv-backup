@@ -1,7 +1,7 @@
 package com.aoindustries.aoserv.backup;
 
 /*
- * Copyright 2001-2007 by AO Industries, Inc.,
+ * Copyright 2001-2008 by AO Industries, Inc.,
  * 816 Azalea Rd, Mobile, Alabama, 36693, U.S.A.
  * All rights reserved.
  */
@@ -21,6 +21,7 @@ import com.aoindustries.aoserv.daemon.client.AOServDaemonConnector;
 import com.aoindustries.aoserv.daemon.client.AOServDaemonProtocol;
 import com.aoindustries.io.AOPool;
 import com.aoindustries.io.BitRateOutputStream;
+import com.aoindustries.io.BitRateProvider;
 import com.aoindustries.io.ByteCountInputStream;
 import com.aoindustries.io.ByteCountOutputStream;
 import com.aoindustries.io.CompressedDataInputStream;
@@ -181,6 +182,32 @@ final public class BackupDaemon {
     synchronized public void runNow(FailoverFileReplication ffr) {
         BackupDaemonThread thread = threads.get(ffr);
         if(thread==null) thread.runNow();
+    }
+
+    private static class DynamicBitRateProvider implements BitRateProvider {
+        
+        final private BackupEnvironment environment;
+        final private FailoverFileReplication originalFfr;
+        
+        private DynamicBitRateProvider(BackupEnvironment environment, FailoverFileReplication ffr) {
+            this.environment = environment;
+            this.originalFfr = ffr;
+        }
+
+        public int getBitRate() {
+            try {
+                // Try to get the latest version of originalFfr
+                FailoverFileReplication newFfr = originalFfr.getTable().get(originalFfr.getKey());
+                if(newFfr!=null) return newFfr.getBitRate();
+            } catch(RuntimeException err) {
+                environment.error(DynamicBitRateProvider.class, "getBitRate", null, err);
+            }
+            return originalFfr.getBitRate();
+        }
+
+        public int getBlockSize() {
+            return originalFfr.getBlockSize();
+        }
     }
 
     private static class BackupDaemonThread implements Runnable {
@@ -635,34 +662,12 @@ final public class BackupDaemon {
                             if(currentThread!=thread) return;
                         }
                         if(result==AOServDaemonProtocol.NEXT) {
-                            // Setup Compression and/or bandwidth limiting
-                            CompressedDataOutputStream out;
-                            CompressedDataInputStream in;
-                            ByteCountOutputStream rawBytesOutStream;
-                            ByteCountInputStream rawBytesInStream;
+                            // Only the output is limited because input should always be smaller than the output
+                            ByteCountOutputStream rawBytesOutStream = new ByteCountOutputStream(new BitRateOutputStream(rawOut, new DynamicBitRateProvider(environment, ffr)));
+                            CompressedDataOutputStream out = new CompressedDataOutputStream(rawBytesOutStream);
 
-                            if(ffr.getBitRate()!=-1) {
-                                // Only the output is limited because input should always be smaller than the output
-                                out = new CompressedDataOutputStream(
-                                    /*bytesOutStream =*/ rawBytesOutStream = new ByteCountOutputStream(
-                                        new BitRateOutputStream(
-                                            rawOut,
-                                            ffr
-                                        )
-                                    )
-                                );
-                            } else {
-                                out = new CompressedDataOutputStream(
-                                    /*bytesOutStream =*/ rawBytesOutStream = new ByteCountOutputStream(
-                                        rawOut
-                                    )
-                                );
-                            }
-                            in = new CompressedDataInputStream(
-                                /*bytesInStream =*/ rawBytesInStream = new ByteCountInputStream(
-                                    rawIn
-                                )
-                            );
+                            ByteCountInputStream rawBytesInStream = new ByteCountInputStream(rawIn);
+                            CompressedDataInputStream in = new CompressedDataInputStream(rawBytesInStream);
                             try {
                                 // Do requests in batches
                                 String[] filenames = new String[failoverBatchSize];
