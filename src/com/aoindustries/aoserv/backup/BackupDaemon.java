@@ -26,6 +26,7 @@ import com.aoindustries.io.ByteCountInputStream;
 import com.aoindustries.io.ByteCountOutputStream;
 import com.aoindustries.io.CompressedDataInputStream;
 import com.aoindustries.io.CompressedDataOutputStream;
+import com.aoindustries.io.DontCloseOutputStream;
 import com.aoindustries.io.TerminalWriter;
 import com.aoindustries.io.unix.UnixFile;
 import com.aoindustries.md5.MD5;
@@ -47,6 +48,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.zip.GZIPOutputStream;
 
 /**
  * The <code>FailoverFileReplicationDaemon</code> runs on every server that is backed-up.
@@ -664,7 +666,11 @@ final public class BackupDaemon {
                         if(result==AOServDaemonProtocol.NEXT) {
                             // Only the output is limited because input should always be smaller than the output
                             ByteCountOutputStream rawBytesOutStream = new ByteCountOutputStream(new BitRateOutputStream(rawOut, new DynamicBitRateProvider(environment, ffr)));
-                            CompressedDataOutputStream out = new CompressedDataOutputStream(rawBytesOutStream);
+                            CompressedDataOutputStream out = new CompressedDataOutputStream(
+                                useCompression
+                                ? new GZIPOutputStream(new DontCloseOutputStream(rawBytesOutStream), BufferManager.BUFFER_SIZE)
+                                : rawBytesOutStream
+                            );
 
                             ByteCountInputStream rawBytesInStream = new ByteCountInputStream(rawIn);
                             CompressedDataInputStream in = new CompressedDataInputStream(rawBytesInStream);
