@@ -26,7 +26,6 @@ import com.aoindustries.io.ByteCountInputStream;
 import com.aoindustries.io.ByteCountOutputStream;
 import com.aoindustries.io.CompressedDataInputStream;
 import com.aoindustries.io.CompressedDataOutputStream;
-import com.aoindustries.io.DontCloseOutputStream;
 import com.aoindustries.io.TerminalWriter;
 import com.aoindustries.io.unix.UnixFile;
 import com.aoindustries.md5.MD5;
@@ -36,6 +35,7 @@ import com.aoindustries.table.TableListener;
 import com.aoindustries.util.BufferManager;
 import com.aoindustries.util.ErrorHandler;
 import com.aoindustries.util.ErrorPrinter;
+//import com.aoindustries.util.zip.AutoFinishGZIPOutputStream;
 import java.io.DataOutputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -48,7 +48,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
-import java.util.zip.GZIPOutputStream;
 
 /**
  * The <code>FailoverFileReplicationDaemon</code> runs on every server that is backed-up.
@@ -667,9 +666,9 @@ final public class BackupDaemon {
                             // Only the output is limited because input should always be smaller than the output
                             ByteCountOutputStream rawBytesOutStream = new ByteCountOutputStream(new BitRateOutputStream(rawOut, new DynamicBitRateProvider(environment, ffr)));
                             CompressedDataOutputStream out = new CompressedDataOutputStream(
-                                useCompression
-                                ? new GZIPOutputStream(new DontCloseOutputStream(rawBytesOutStream), BufferManager.BUFFER_SIZE)
-                                : rawBytesOutStream
+                                /*useCompression
+                                ? new AutoFinishGZIPOutputStream(new DontCloseOutputStream(rawBytesOutStream), BufferManager.BUFFER_SIZE)
+                                :*/ rawBytesOutStream
                             );
 
                             ByteCountInputStream rawBytesInStream = new ByteCountInputStream(rawIn);
@@ -753,6 +752,12 @@ final public class BackupDaemon {
                                             }
                                         }
                                         out.flush();
+                                        // Recreate the compressed stream after flush because GZIPOutputStream is broken.
+                                        /*if(useCompression) {
+                                            out = new CompressedDataOutputStream(
+                                                new AutoFinishGZIPOutputStream(new DontCloseOutputStream(rawBytesOutStream), BufferManager.BUFFER_SIZE)
+                                            );
+                                        }*/
                                         synchronized(this) {
                                             if(currentThread!=thread) return;
                                         }
@@ -925,6 +930,12 @@ final public class BackupDaemon {
                                 }
                                 out.writeCompressedInt(-1);
                                 out.flush();
+                                // Recreate the compressed stream after flush because GZIPOutputStream is broken.
+                                /*if(useCompression) {
+                                    out = new CompressedDataOutputStream(
+                                        new AutoFinishGZIPOutputStream(new DontCloseOutputStream(rawBytesOutStream), BufferManager.BUFFER_SIZE)
+                                    );
+                                }*/
                                 synchronized(this) {
                                     if(currentThread!=thread) return;
                                 }
