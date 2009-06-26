@@ -84,7 +84,7 @@ final public class BackupDaemon {
     synchronized public void start() throws IOException, SQLException {
         if(!isStarted) {
             AOServConnector conn = environment.getConnector();
-            conn.failoverFileReplications.addTableListener(tableListener);
+            conn.getFailoverFileReplications().addTableListener(tableListener);
             isStarted = true;
             new Thread(
                 new Runnable() {
@@ -160,7 +160,7 @@ final public class BackupDaemon {
     synchronized public void stop() throws IOException, SQLException {
         if(isStarted) {
             AOServConnector conn = environment.getConnector();
-            conn.failoverFileReplications.removeTableListener(tableListener);
+            conn.getFailoverFileReplications().removeTableListener(tableListener);
             isStarted = false;
             // Stop each thread
             for(Map.Entry<FailoverFileReplication,BackupDaemonThread> entry : threads.entrySet()) {
@@ -200,6 +200,10 @@ final public class BackupDaemon {
                 // Try to get the latest version of originalFfr
                 FailoverFileReplication newFfr = originalFfr.getTable().get(originalFfr.getKey());
                 if(newFfr!=null) return newFfr.getBitRate();
+            } catch(IOException err) {
+                environment.error(DynamicBitRateProvider.class, "getBitRate", null, err);
+            } catch(SQLException err) {
+                environment.error(DynamicBitRateProvider.class, "getBitRate", null, err);
             } catch(RuntimeException err) {
                 environment.error(DynamicBitRateProvider.class, "getBitRate", null, err);
             }
@@ -342,7 +346,7 @@ final public class BackupDaemon {
                         }
 
                         // Get the latest ffr object (if cache was invalidated) to adhere to changes in enabled flag
-                        FailoverFileReplication newFFR = environment.getConnector().failoverFileReplications.get(ffr.getPkey());
+                        FailoverFileReplication newFFR = environment.getConnector().getFailoverFileReplications().get(ffr.getPkey());
                         synchronized(this) {
                             if(currentThread!=thread) return;
                         }
