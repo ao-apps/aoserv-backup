@@ -33,9 +33,8 @@ import com.aoindustries.sql.SQLUtility;
 import com.aoindustries.table.Table;
 import com.aoindustries.table.TableListener;
 import com.aoindustries.util.BufferManager;
-import com.aoindustries.util.ErrorHandler;
-import com.aoindustries.util.ErrorPrinter;
 //import com.aoindustries.util.zip.AutoFinishGZIPOutputStream;
+import com.aoindustries.util.ErrorPrinter;
 import java.io.DataOutputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -48,6 +47,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * The <code>FailoverFileReplicationDaemon</code> runs on every server that is backed-up.
@@ -71,9 +72,9 @@ final public class BackupDaemon {
             try {
                 verifyThreads();
             } catch(IOException err) {
-                environment.error(getClass(), "tableUpdated", null, err);
+                environment.getLogger().logp(Level.SEVERE, getClass().getName(), "tableUpdated", null, err);
             } catch(SQLException err) {
-                environment.error(getClass(), "tableUpdated", null, err);
+                environment.getLogger().logp(Level.SEVERE, getClass().getName(), "tableUpdated", null, err);
             }
         }
     };
@@ -94,25 +95,25 @@ final public class BackupDaemon {
                                 verifyThreads();
                                 break;
                             } catch(RuntimeException err) {
-                                environment.error(getClass(), "run", null, err);
+                                environment.getLogger().logp(Level.SEVERE, getClass().getName(), "run", null, err);
                                 try {
                                     Thread.sleep(60000);
                                 } catch(InterruptedException err2) {
-                                    environment.warn(getClass(), "run", null, err2);
+                                    environment.getLogger().logp(Level.WARNING, getClass().getName(), "run", null, err2);
                                 }
                             } catch(IOException err) {
-                                environment.error(getClass(), "run", null, err);
+                                environment.getLogger().logp(Level.SEVERE, getClass().getName(), "run", null, err);
                                 try {
                                     Thread.sleep(60000);
                                 } catch(InterruptedException err2) {
-                                    environment.warn(getClass(), "run", null, err2);
+                                    environment.getLogger().logp(Level.WARNING, getClass().getName(), "run", null, err2);
                                 }
                             } catch(SQLException err) {
-                                environment.error(getClass(), "run", null, err);
+                                environment.getLogger().logp(Level.SEVERE, getClass().getName(), "run", null, err);
                                 try {
                                     Thread.sleep(60000);
                                 } catch(InterruptedException err2) {
-                                    environment.warn(getClass(), "run", null, err2);
+                                    environment.getLogger().logp(Level.WARNING, getClass().getName(), "run", null, err2);
                                 }
                             }
                         }
@@ -126,12 +127,14 @@ final public class BackupDaemon {
         // Ignore events coming in after shutdown
         if(isStarted) {
             Server thisServer = environment.getThisServer();
+            Logger logger = environment.getLogger();
+            boolean isDebug = logger.isLoggable(Level.FINE);
             //AOServConnector conn = environment.getConnector();
             List<FailoverFileReplication> removedList = new ArrayList<FailoverFileReplication>(threads.keySet());
             for(FailoverFileReplication ffr : thisServer.getFailoverFileReplications()) {
                 removedList.remove(ffr);
                 if(!threads.containsKey(ffr)) {
-                    if(environment.isDebugEnabled()) environment.debug(getClass(), "verifyThreads", "Starting BackupDaemonThread for "+ffr, null);
+                    if(isDebug) logger.logp(Level.FINE, getClass().getName(), "verifyThreads", "Starting BackupDaemonThread for "+ffr);
                     BackupDaemonThread thread = new BackupDaemonThread(environment, ffr);
                     threads.put(ffr, thread);
                     thread.start();
@@ -139,16 +142,16 @@ final public class BackupDaemon {
             }
             for(FailoverFileReplication ffr : removedList) {
                 BackupDaemonThread thread = threads.get(ffr);
-                if(environment.isDebugEnabled()) environment.debug(getClass(), "verifyThreads", "Stopping BackupDaemonThread for "+ffr, null);
+                if(isDebug) logger.logp(Level.FINE, getClass().getName(), "verifyThreads", "Stopping BackupDaemonThread for "+ffr);
                 thread.stop();
             }
             for(FailoverFileReplication ffr : removedList) {
                 BackupDaemonThread thread = threads.remove(ffr);
-                if(environment.isDebugEnabled()) environment.debug(getClass(), "verifyThreads", "Joining BackupDaemonThread for "+ffr, null);
+                if(isDebug) logger.logp(Level.FINE, getClass().getName(), "verifyThreads", "Joining BackupDaemonThread for "+ffr);
                 try {
                     thread.join();
                 } catch(InterruptedException err) {
-                    environment.warn(getClass(), "verifyThreads", null, err);
+                    environment.getLogger().logp(Level.WARNING, getClass().getName(), "verifyThreads", null, err);
                 }
             }
         }
@@ -162,18 +165,20 @@ final public class BackupDaemon {
             AOServConnector conn = environment.getConnector();
             conn.getFailoverFileReplications().removeTableListener(tableListener);
             isStarted = false;
+            Logger logger = environment.getLogger();
+            boolean isDebug = logger.isLoggable(Level.FINE);
             // Stop each thread
             for(Map.Entry<FailoverFileReplication,BackupDaemonThread> entry : threads.entrySet()) {
-                if(environment.isDebugEnabled()) environment.debug(getClass(), "stop", "Stopping BackupDaemonThread for "+entry.getKey(), null);
+                if(isDebug) logger.logp(Level.FINE, getClass().getName(), "stop", "Stopping BackupDaemonThread for "+entry.getKey());
                 entry.getValue().stop();
             }
             // Join each thread (wait for actual stop)
             for(Map.Entry<FailoverFileReplication,BackupDaemonThread> entry : threads.entrySet()) {
-                if(environment.isDebugEnabled()) environment.debug(getClass(), "stop", "Joining BackupDaemonThread for "+entry.getKey(), null);
+                if(isDebug) logger.logp(Level.FINE, getClass().getName(), "stop", "Joining BackupDaemonThread for "+entry.getKey());
                 try {
                     entry.getValue().join();
                 } catch(InterruptedException err) {
-                    if(environment.isWarnEnabled()) environment.warn(getClass(), "stop", null, err);
+                    environment.getLogger().logp(Level.WARNING, getClass().getName(), "stop", null, err);
                 }
             }
             threads.clear();
@@ -201,11 +206,11 @@ final public class BackupDaemon {
                 FailoverFileReplication newFfr = originalFfr.getTable().get(originalFfr.getKey());
                 if(newFfr!=null) return newFfr.getBitRate();
             } catch(IOException err) {
-                environment.error(DynamicBitRateProvider.class, "getBitRate", null, err);
+                environment.getLogger().logp(Level.SEVERE, DynamicBitRateProvider.class.getName(), "getBitRate", null, err);
             } catch(SQLException err) {
-                environment.error(DynamicBitRateProvider.class, "getBitRate", null, err);
+                environment.getLogger().logp(Level.SEVERE, DynamicBitRateProvider.class.getName(), "getBitRate", null, err);
             } catch(RuntimeException err) {
-                environment.error(DynamicBitRateProvider.class, "getBitRate", null, err);
+                environment.getLogger().logp(Level.SEVERE, DynamicBitRateProvider.class.getName(), "getBitRate", null, err);
             }
             return originalFfr.getBitRate();
         }
@@ -243,16 +248,6 @@ final public class BackupDaemon {
         volatile private boolean runNow;
         private Thread thread;
         private Thread lastThread;
-
-        final private ErrorHandler errorHandler = new ErrorHandler() {
-            public void reportError(Throwable T, Object[] extraInfo) {
-                if(environment.isErrorEnabled()) environment.error(getClass(), "reportError", convertExtraInfo(extraInfo), T);
-            }
-
-            public void reportWarning(Throwable T, Object[] extraInfo) {
-                if(environment.isWarnEnabled()) environment.warn(getClass(), "reportWarning", convertExtraInfo(extraInfo), T);
-            }
-        };
 
         private BackupDaemonThread(BackupEnvironment environment, FailoverFileReplication ffr) {
             this.environment = environment;
@@ -302,6 +297,8 @@ final public class BackupDaemon {
                 synchronized(this) {
                     if(currentThread!=thread) return;
                 }
+                Logger logger = environment.getLogger();
+                boolean isDebug = logger.isLoggable(Level.FINE);
                 try {
                     Random random = environment.getRandom();
                     short retention = ffr.getRetention().getDays();
@@ -312,11 +309,11 @@ final public class BackupDaemon {
                     List<FailoverFileLog> ffls = ffr.getFailoverFileLogs(1);
                     if(!ffls.isEmpty()) {
                         FailoverFileLog lastLog = ffls.get(0);
-                        if(environment.isDebugEnabled()) environment.debug(getClass(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "lastLog="+lastLog, null);
+                        if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "lastLog="+lastLog);
                         lastStartTime = lastLog.getStartTime();
-                        if(environment.isDebugEnabled()) environment.debug(getClass(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "lastStartTime="+SQLUtility.getDateTime(lastStartTime), null);
+                        if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "lastStartTime="+SQLUtility.getDateTime(lastStartTime));
                         lastPassSuccessful = lastLog.isSuccessful();
-                        if(environment.isDebugEnabled()) environment.debug(getClass(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "lastPassSuccessful="+lastPassSuccessful, null);
+                        if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "lastPassSuccessful="+lastPassSuccessful);
                     }
                     // Single calendar instance is used
                     Calendar cal = Calendar.getInstance();
@@ -335,7 +332,7 @@ final public class BackupDaemon {
                                 // may schedule for certain times (like 6:00 am exactly)
                                 //long sleepyTime = 60*1000 + random.nextInt(4*60*1000);
                                 long sleepyTime = 55*1000;
-                                if(environment.isDebugEnabled()) environment.debug(getClass(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "Sleeping for "+sleepyTime+" milliseconds before checking if backup pass needed.", null);
+                                if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "Sleeping for "+sleepyTime+" milliseconds before checking if backup pass needed.");
                                 Thread.sleep(sleepyTime);
                             } catch(InterruptedException err) {
                                 // May be interrupted by stop call
@@ -353,24 +350,24 @@ final public class BackupDaemon {
 
                         if(newFFR==null) {
                             // Don't try to run removed ffr
-                            if(environment.isDebugEnabled()) environment.debug(getClass(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "Replication removed", null);
+                            if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "Replication removed");
                         } else if(!newFFR.getEnabled()) {
                             // Don't try to run disabled ffr
-                            if(environment.isDebugEnabled()) environment.debug(getClass(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "Replication not enabled", null);
+                            if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "Replication not enabled");
                         } else {
                             long currentTime = System.currentTimeMillis();
                             cal.setTimeInMillis(currentTime);
                             int currentHour = cal.get(Calendar.HOUR_OF_DAY);
                             int currentMinute = cal.get(Calendar.MINUTE);
 
-                            if(environment.isDebugEnabled()) environment.debug(getClass(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "newFFR="+newFFR, null);
+                            if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "newFFR="+newFFR);
                             Server thisServer=environment.getThisServer();
-                            if(environment.isDebugEnabled()) environment.debug(getClass(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "thisServer="+thisServer, null);
+                            if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "thisServer="+thisServer);
                             AOServer thisAOServer = thisServer.getAOServer();
                             AOServer failoverServer = thisAOServer==null ? null : thisAOServer.getFailoverServer();
-                            if(environment.isDebugEnabled()) environment.debug(getClass(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "failoverServer="+failoverServer, null);
+                            if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "failoverServer="+failoverServer);
                             AOServer toServer=newFFR.getBackupPartition().getAOServer();
-                            if(environment.isDebugEnabled()) environment.debug(getClass(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "toServer="+toServer, null);
+                            if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "toServer="+toServer);
                             synchronized(this) {
                                 if(currentThread!=thread) return;
                             }
@@ -382,41 +379,41 @@ final public class BackupDaemon {
                                 toServer.equals(failoverServer)
                             ) {
                                 shouldRun = false;
-                                if(environment.isDebugEnabled()) environment.debug(getClass(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "Refusing to replication to our failover parent: "+failoverServer, null);
+                                if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "Refusing to replication to our failover parent: "+failoverServer);
                             } else if(runNow) {
                                 shouldRun = true;
                                 runNow = false;
-                                if(environment.isDebugEnabled()) environment.debug(getClass(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "runNow causing immediate run of backup", null);
+                                if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "runNow causing immediate run of backup");
                             } else if(
                                 // Never ran before
                                 lastStartTime==-1
                             ) {
                                 shouldRun = true;
-                                if(environment.isDebugEnabled()) environment.debug(getClass(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "Never ran this mirror", null);
+                                if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "Never ran this mirror");
                             } else if(
                                 // If the last attempt failed, run now
                                 !lastPassSuccessful
                             ) {
                                 shouldRun = true;
-                                if(environment.isDebugEnabled()) environment.debug(getClass(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "The last attempt at this mirror failed",null);
+                                if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "The last attempt at this mirror failed");
                             } else if(
                                 // Last pass in the future (time reset)
                                 lastStartTime > currentTime
                             ) {
                                 shouldRun = false;
-                                if(environment.isDebugEnabled()) environment.debug(getClass(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "Last pass in the future (time reset)", null);
+                                if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "Last pass in the future (time reset)");
                             } else if(
                                 // Last pass more than 24 hours ago (this handles replications without schedules)
                                 (currentTime - lastStartTime)>=(24*60*60*1000)
                             ) {
                                 shouldRun = true;
-                                if(environment.isDebugEnabled()) environment.debug(getClass(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "Last pass more than 24 hours ago", null);
+                                if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "Last pass more than 24 hours ago");
                             } else if(
                                 // The system time was set back
                                 lastCheckTime!=-1 && lastCheckTime>currentTime
                             ) {
                                 shouldRun = false;
-                                if(environment.isDebugEnabled()) environment.debug(getClass(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "Last check time in the future (time reset)", null);
+                                if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "Last check time in the future (time reset)");
                             } else {
                                 // If there is currently no schedule, this will not flag shouldRun and the check for 24-hours passed (above) will force the backup
                                 List<FailoverFileSchedule> schedules = newFFR.getFailoverFileSchedules();
@@ -434,7 +431,7 @@ final public class BackupDaemon {
                                             && currentMinute==scheduleMinute
                                         ) {
                                             shouldRun = true;
-                                            if(environment.isDebugEnabled()) environment.debug(getClass(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "It is the scheduled time: scheduleHour="+scheduleHour+" and scheduleMinute="+scheduleMinute, null);
+                                            if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "It is the scheduled time: scheduleHour="+scheduleHour+" and scheduleMinute="+scheduleMinute);
                                             break;
                                         }
                                     //} else {
@@ -468,7 +465,8 @@ final public class BackupDaemon {
                                                 int scheduleMinute = schedule.getMinute();
                                                 if(lastCheckHour==scheduleHour && lastCheckMinute==scheduleMinute) {
                                                     shouldRun = true;
-                                                    if(environment.isDebugEnabled()) environment.debug(getClass(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "Missed a scheduled time: scheduleHour="+scheduleHour+" and scheduleMinute="+scheduleMinute, null);                                                    break CHECK_LOOP;
+                                                    if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "Missed a scheduled time: scheduleHour="+scheduleHour+" and scheduleMinute="+scheduleMinute);
+                                                    break CHECK_LOOP;
                                                 }
                                             }
                                         }
@@ -492,39 +490,39 @@ final public class BackupDaemon {
                                     }
                                     lastPassSuccessful = true;
                                 } catch(RuntimeException T) {
-                                    if(environment.isErrorEnabled()) environment.error(getClass(), "run", null, T);
+                                    environment.getLogger().logp(Level.SEVERE, getClass().getName(), "run", null, T);
                                     synchronized(this) {
                                         if(currentThread!=thread) return;
                                     }
                                     //Randomized sleep interval to reduce master load on startup (5-15 minutes)
                                     int sleepyTime = 5*60*1000 + random.nextInt(10*60*1000);
-                                    if(environment.isDebugEnabled()) environment.debug(getClass(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "Sleeping for "+sleepyTime+" milliseconds after an error", null);
+                                    if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "Sleeping for "+sleepyTime+" milliseconds after an error");
                                     try {
                                         Thread.sleep(sleepyTime); 
                                     } catch(InterruptedException err) {
                                         // May be interrupted by stop call
                                     }
                                 } catch(IOException T) {
-                                    if(environment.isErrorEnabled()) environment.error(getClass(), "run", null, T);
+                                    environment.getLogger().logp(Level.SEVERE, getClass().getName(), "run", null, T);
                                     synchronized(this) {
                                         if(currentThread!=thread) return;
                                     }
                                     //Randomized sleep interval to reduce master load on startup (5-15 minutes)
                                     int sleepyTime = 5*60*1000 + random.nextInt(10*60*1000);
-                                    if(environment.isDebugEnabled()) environment.debug(getClass(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "Sleeping for "+sleepyTime+" milliseconds after an error", null);
+                                    if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "Sleeping for "+sleepyTime+" milliseconds after an error");
                                     try {
                                         Thread.sleep(sleepyTime); 
                                     } catch(InterruptedException err) {
                                         // May be interrupted by stop call
                                     }
                                 } catch(SQLException T) {
-                                    if(environment.isErrorEnabled()) environment.error(getClass(), "run", null, T);
+                                    environment.getLogger().logp(Level.SEVERE, getClass().getName(), "run", null, T);
                                     synchronized(this) {
                                         if(currentThread!=thread) return;
                                     }
                                     //Randomized sleep interval to reduce master load on startup (5-15 minutes)
                                     int sleepyTime = 5*60*1000 + random.nextInt(10*60*1000);
-                                    if(environment.isDebugEnabled()) environment.debug(getClass(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "Sleeping for "+sleepyTime+" milliseconds after an error", null);
+                                    if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "Sleeping for "+sleepyTime+" milliseconds after an error");
                                     try {
                                         Thread.sleep(sleepyTime); 
                                     } catch(InterruptedException err) {
@@ -537,13 +535,13 @@ final public class BackupDaemon {
                 } catch(ThreadDeath TD) {
                     throw TD;
                 } catch(Throwable T) {
-                    if(environment.isErrorEnabled()) environment.error(getClass(), "run", null, T);
+                    environment.getLogger().logp(Level.SEVERE, getClass().getName(), "run", null, T);
                     synchronized(this) {
                         if(currentThread!=thread) return;
                     }
                     //Randomized sleep interval to reduce master load on startup (5-15 minutes)
                     int sleepyTime = 5*60*1000 + (int)(Math.random()*(10*60*1000));
-                    if(environment.isDebugEnabled()) environment.debug(getClass(), "run", "Sleeping for "+sleepyTime+" milliseconds after an error", null);
+                    if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", "Sleeping for "+sleepyTime+" milliseconds after an error");
                     try {
                         Thread.sleep(sleepyTime);
                     } catch(InterruptedException err) {
@@ -562,6 +560,8 @@ final public class BackupDaemon {
             }
             environment.init(ffr);
             try {
+                Logger logger = environment.getLogger();
+                boolean isDebug = logger.isLoggable(Level.FINE);
                 synchronized(this) {
                     if(currentThread!=thread) return;
                 }
@@ -574,13 +574,13 @@ final public class BackupDaemon {
                     if(currentThread!=thread) return;
                 }
 
-                if(environment.isDebugEnabled()) environment.debug(getClass(), "backupPass", (retention>1 ? "Backup: " : "Failover: ") + "Running failover from "+thisServer+" to "+toServer, null);
+                if(isDebug) logger.logp(Level.FINE, getClass().getName(), "backupPass", (retention>1 ? "Backup: " : "Failover: ") + "Running failover from "+thisServer+" to "+toServer);
 
                 Calendar cal = Calendar.getInstance();
                 final long startTime=cal.getTimeInMillis();
 
-                if(environment.isDebugEnabled()) environment.debug(getClass(), "backupPass", (retention>1 ? "Backup: " : "Failover: ") + "useCompression="+useCompression, null);
-                if(environment.isDebugEnabled()) environment.debug(getClass(), "backupPass", (retention>1 ? "Backup: " : "Failover: ") + "retention="+retention, null);
+                if(isDebug) logger.logp(Level.FINE, getClass().getName(), "backupPass", (retention>1 ? "Backup: " : "Failover: ") + "useCompression="+useCompression);
+                if(isDebug) logger.logp(Level.FINE, getClass().getName(), "backupPass", (retention>1 ? "Backup: " : "Failover: ") + "retention="+retention);
 
                 // Keep statistics during the replication
                 int scanned=0;
@@ -622,7 +622,7 @@ final public class BackupDaemon {
                         SSLConnector.sslProviderLoaded,
                         AOServClientConfiguration.getSslTruststorePath(),
                         AOServClientConfiguration.getSslTruststorePassword(),
-                        errorHandler
+                        environment.getLogger()
                     );
                     AOServDaemonConnection daemonConn=daemonConnector.getConnection();
                     try {
@@ -714,10 +714,10 @@ final public class BackupDaemon {
                                                         try {
                                                             symLinkTarget = environment.readLink(ffr, filename);
                                                         } catch(SecurityException err) {
-                                                            if(environment.isErrorEnabled()) environment.error(getClass(), "backupPass", "SecurityException trying to readlink: "+filename, err);
+                                                            environment.getLogger().logp(Level.SEVERE, getClass().getName(), "backupPass", "SecurityException trying to readlink: "+filename, err);
                                                             throw err;
                                                         } catch(IOException err) {
-                                                            if(environment.isErrorEnabled()) environment.error(getClass(), "backupPass", "IOException trying to readlink: "+filename, err);
+                                                            environment.getLogger().logp(Level.SEVERE, getClass().getName(), "backupPass", "IOException trying to readlink: "+filename, err);
                                                             throw err;
                                                         }
                                                     } else {
@@ -733,12 +733,12 @@ final public class BackupDaemon {
                                                     out.writeLong(mode);
                                                     if(UnixFile.isRegularFile(mode)) out.writeLong(size);
                                                     if(uid<0 || uid>65535) {
-                                                        if(environment.isWarnEnabled()) environment.warn(getClass(), "backupPass", null, new IOException("UID out of range, converted to 0, uid="+uid+" and path="+filename));
+                                                        environment.getLogger().logp(Level.WARNING, getClass().getName(), "backupPass", null, new IOException("UID out of range, converted to 0, uid="+uid+" and path="+filename));
                                                         uid=0;
                                                     }
                                                     out.writeCompressedInt(uid);
                                                     if(gid<0 || gid>65535) {
-                                                        if(environment.isWarnEnabled()) environment.warn(getClass(), "backupPass", null, new IOException("GID out of range, converted to 0, gid="+gid+" and path="+filename));
+                                                        environment.getLogger().logp(Level.WARNING, getClass().getName(), "backupPass", null, new IOException("GID out of range, converted to 0, gid="+gid+" and path="+filename));
                                                         gid=0;
                                                     }
                                                     out.writeCompressedInt(gid);
@@ -819,12 +819,12 @@ final public class BackupDaemon {
                                             if(filename!=null) {
                                                 result=results[d];
                                                 if(result==AOServDaemonProtocol.FAILOVER_FILE_REPLICATION_MODIFIED) {
-                                                    if(environment.isDebugEnabled()) environment.debug(getClass(), "backupPass", (retention>1 ? "Backup: " : "Failover: ") + "File modified: "+filename, null);
+                                                    if(isDebug) logger.logp(Level.FINE, getClass().getName(), "backupPass", (retention>1 ? "Backup: " : "Failover: ") + "File modified: "+filename);
                                                     updated++;
                                                 } else if(result==AOServDaemonProtocol.FAILOVER_FILE_REPLICATION_MODIFIED_REQUEST_DATA) {
                                                     updated++;
                                                     try {
-                                                        if(environment.isDebugEnabled()) environment.debug(getClass(), "backupPass", (retention>1 ? "Backup: " : "Failover: ") + "Sending file contents: "+filename, null);
+                                                        if(isDebug) logger.logp(Level.FINE, getClass().getName(), "backupPass", (retention>1 ? "Backup: " : "Failover: ") + "Sending file contents: "+filename);
                                                         // Shortcut for 0 length files (don't open for reading)
                                                         if(environment.getLength(ffr, filename)!=0) {
                                                             InputStream fileIn = environment.getInputStream(ffr, filename);
@@ -855,7 +855,7 @@ final public class BackupDaemon {
                                                 } else if(result==AOServDaemonProtocol.FAILOVER_FILE_REPLICATION_MODIFIED_REQUEST_DATA_CHUNKED) {
                                                     updated++;
                                                     try {
-                                                        if(environment.isDebugEnabled()) environment.debug(getClass(), "backupPass", (retention>1 ? "Backup: " : "Failover: ") + "Chunking file contents: "+filename, null);
+                                                        if(isDebug) logger.logp(Level.FINE, getClass().getName(), "backupPass", (retention>1 ? "Backup: " : "Failover: ") + "Chunking file contents: "+filename);
                                                         long[] md5Hi = md5His[d];
                                                         long[] md5Lo = md5Los[d];
                                                         InputStream fileIn=environment.getInputStream(ffr, filename);
@@ -900,7 +900,7 @@ final public class BackupDaemon {
                                                                 // Increment chunk number for next iteration
                                                                 chunkNumber++;
                                                             }
-                                                            if(environment.isDebugEnabled()) environment.debug(getClass(), "backupPass", (retention>1 ? "Backup: " : "Failover: ") + "Chunking file contents: "+filename+": Sent "+sendChunkCount+" out of "+chunkNumber+" chunks", null);
+                                                            if(isDebug) logger.logp(Level.FINE, getClass().getName(), "backupPass", (retention>1 ? "Backup: " : "Failover: ") + "Chunking file contents: "+filename+": Sent "+sendChunkCount+" out of "+chunkNumber+" chunks");
                                                         } finally {
                                                             fileIn.close();
                                                         }
@@ -973,13 +973,13 @@ final public class BackupDaemon {
                             break;
                         } catch(RuntimeException err) {
                             if(c>=10) {
-                                environment.error(getClass(), "backupPass", "Error adding failover file log, giving up", err);
+                                environment.getLogger().logp(Level.SEVERE, getClass().getName(), "backupPass", "Error adding failover file log, giving up", err);
                             } else {
-                                environment.error(getClass(), "backupPass", "Error adding failover file log, will retry in one minute", err);
+                                environment.getLogger().logp(Level.SEVERE, getClass().getName(), "backupPass", "Error adding failover file log, will retry in one minute", err);
                                 try {
                                     Thread.sleep(60*1000);
                                 } catch(InterruptedException err2) {
-                                    environment.warn(getClass(), "backupPass", null, err2);
+                                    environment.getLogger().logp(Level.WARNING, getClass().getName(), "backupPass", null, err2);
                                 }
                             }
                         }
@@ -1039,11 +1039,12 @@ final public class BackupDaemon {
                 } catch (ThreadDeath TD) {
                     throw TD;
                 } catch (Throwable T) {
-                    environment.error(BackupDaemon.class, "main", null, T);
+                    Logger logger = environment.getLogger();
+                    logger.logp(Level.SEVERE, BackupDaemon.class.getName(), "main", null, T);
                     try {
                         Thread.sleep(60000);
                     } catch(InterruptedException err) {
-                        environment.warn(BackupDaemon.class, "main", null, err);
+                        logger.logp(Level.WARNING, BackupDaemon.class.getName(), "main", null, err);
                     }
                 }
             }

@@ -14,6 +14,7 @@ import java.sql.SQLException;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
+import java.util.logging.Logger;
 
 /**
  * A <code>BackupEnvironment</code> tells the <code>BackupDaemon</code> how to run.
@@ -168,34 +169,9 @@ public interface BackupEnvironment {
     Random getRandom() throws IOException, SQLException;
 
     /**
-     * Determines if debug logging is currently enabled.
+     * Gets the logger for this environment.
      */
-    boolean isDebugEnabled();
-    
-    /**
-     * Logs a debug message.
-     */
-    void debug(Class clazz, String method, Object message, Throwable throwable);
-
-    /**
-     * Determines if error logging is currently enabled.
-     */
-    boolean isErrorEnabled();
-
-    /**
-     * Logs an error message.
-     */
-    void error(Class clazz, String method, Object message, Throwable throwable);
-
-    /**
-     * Determines if warning logging is currently enabled.
-     */
-    boolean isWarnEnabled();
-
-    /**
-     * Logs a warn message.
-     */
-    void warn(Class clazz, String method, Object message, Throwable throwable);
+    Logger getLogger();
 
     /**
      * Converts an environment-specific filename into a server path.  The server
