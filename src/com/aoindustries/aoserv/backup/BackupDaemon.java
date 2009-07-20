@@ -11,9 +11,6 @@ import com.aoindustries.aoserv.client.AOServer;
 import com.aoindustries.aoserv.client.FailoverFileLog;
 import com.aoindustries.aoserv.client.FailoverFileReplication;
 import com.aoindustries.aoserv.client.FailoverFileSchedule;
-import com.aoindustries.aoserv.client.NetBind;
-import com.aoindustries.aoserv.client.NetPort;
-import com.aoindustries.aoserv.client.Protocol;
 import com.aoindustries.aoserv.client.SSLConnector;
 import com.aoindustries.aoserv.client.Server;
 import com.aoindustries.aoserv.daemon.client.AOServDaemonConnection;
@@ -33,7 +30,6 @@ import com.aoindustries.sql.SQLUtility;
 import com.aoindustries.table.Table;
 import com.aoindustries.table.TableListener;
 import com.aoindustries.util.BufferManager;
-//import com.aoindustries.util.zip.AutoFinishGZIPOutputStream;
 import com.aoindustries.util.ErrorPrinter;
 import java.io.DataOutputStream;
 import java.io.FileNotFoundException;
@@ -590,15 +586,7 @@ final public class BackupDaemon {
                 boolean isSuccessful=false;
                 try {
                     // Get the connection to the daemon
-                    long key=toServer.requestDaemonAccess(AOServDaemonProtocol.FAILOVER_FILE_REPLICATION, ffr.getPkey());
-                    // Allow the failover connect address to be overridden
-                    String ffrConnectAddress = ffr.getConnectAddress();
-                    // Allow the address to be overridden
-                    String daemonConnectAddress=toServer.getDaemonConnectAddress();
-                    String connectAddress = ffrConnectAddress!=null ? ffrConnectAddress : daemonConnectAddress!=null ? daemonConnectAddress : toServer.getDaemonIPAddress().getIPAddress();
-                    NetBind daemonBind = toServer.getDaemonConnectBind();
-                    NetPort daemonBindPort = daemonBind.getPort();
-                    Protocol daemonBindProtocol = daemonBind.getAppProtocol();
+                    AOServer.DaemonAccess daemonAccess = ffr.requestReplicationDaemonAccess();
 
                     // First, the specific source address from ffr is used
                     String sourceIPAddress = ffr.getConnectFrom();
@@ -610,11 +598,10 @@ final public class BackupDaemon {
                     }
 
                     AOServDaemonConnector daemonConnector=AOServDaemonConnector.getConnector(
-                        toServer.getServer().getPkey(),
-                        connectAddress,
+                        daemonAccess.getHost(),
                         sourceIPAddress,
-                        daemonBindPort.getPort(),
-                        daemonBindProtocol.getProtocol(),
+                        daemonAccess.getPort(),
+                        daemonAccess.getProtocol(),
                         null,
                         toServer.getPoolSize(),
                         AOPool.DEFAULT_MAX_CONNECTION_AGE,
@@ -635,7 +622,7 @@ final public class BackupDaemon {
                         MD5 md5 = useCompression ? new MD5() : null;
 
                         rawOut.writeCompressedInt(AOServDaemonProtocol.FAILOVER_FILE_REPLICATION);
-                        rawOut.writeLong(key);
+                        rawOut.writeLong(daemonAccess.getKey());
                         rawOut.writeBoolean(useCompression);
                         rawOut.writeShort(retention);
 
