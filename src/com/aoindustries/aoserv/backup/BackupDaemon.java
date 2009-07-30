@@ -11,7 +11,6 @@ import com.aoindustries.aoserv.client.AOServer;
 import com.aoindustries.aoserv.client.FailoverFileLog;
 import com.aoindustries.aoserv.client.FailoverFileReplication;
 import com.aoindustries.aoserv.client.FailoverFileSchedule;
-import com.aoindustries.aoserv.client.SSLConnector;
 import com.aoindustries.aoserv.client.Server;
 import com.aoindustries.aoserv.daemon.client.AOServDaemonConnection;
 import com.aoindustries.aoserv.daemon.client.AOServDaemonConnector;
@@ -605,8 +604,6 @@ final public class BackupDaemon {
                         null,
                         toServer.getPoolSize(),
                         AOPool.DEFAULT_MAX_CONNECTION_AGE,
-                        SSLConnector.class,
-                        SSLConnector.sslProviderLoaded,
                         AOServClientConfiguration.getSslTruststorePath(),
                         AOServClientConfiguration.getSslTruststorePassword(),
                         environment.getLogger()
