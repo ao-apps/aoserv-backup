@@ -7,8 +7,6 @@ package com.aoindustries.aoserv.backup;
  */
 import com.aoindustries.aoserv.client.FailoverFileReplication;
 import com.aoindustries.io.FilesystemIteratorRule;
-import java.io.IOException;
-import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -18,13 +16,13 @@ import java.util.Map;
 abstract public class MacOsXEnvironment extends FileEnvironment {
 
     @Override
-    protected Map<String,FilesystemIteratorRule> getFilesystemIteratorRules(FailoverFileReplication ffr) throws IOException, SQLException {
+    protected Map<String,FilesystemIteratorRule> getFilesystemIteratorRules(FailoverFileReplication ffr) {
         Map<String,FilesystemIteratorRule> filesystemRules=new HashMap<String,FilesystemIteratorRule>();
         return filesystemRules;
     }
 
     @Override
-    protected Map<String,FilesystemIteratorRule> getFilesystemIteratorPrefixRules(FailoverFileReplication ffr) throws IOException, SQLException {
+    protected Map<String,FilesystemIteratorRule> getFilesystemIteratorPrefixRules(FailoverFileReplication ffr) {
         Map<String,FilesystemIteratorRule> filesystemPrefixRules = new HashMap<String, FilesystemIteratorRule>();
         return filesystemPrefixRules;
     }

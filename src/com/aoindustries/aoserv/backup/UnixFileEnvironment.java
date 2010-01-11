@@ -1,16 +1,16 @@
-package com.aoindustries.aoserv.backup;
-
 /*
  * Copyright 2003-2009 by AO Industries, Inc.,
  * 7262 Bull Pen Cir, Mobile, Alabama, 36695, U.S.A.
  * All rights reserved.
  */
+package com.aoindustries.aoserv.backup;
+
 import com.aoindustries.aoserv.client.FailoverFileReplication;
 import com.aoindustries.io.unix.Stat;
 import com.aoindustries.io.unix.UnixFile;
 import java.io.File;
 import java.io.IOException;
-import java.sql.SQLException;
+import java.rmi.RemoteException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -100,7 +100,7 @@ abstract public class UnixFileEnvironment extends FileEnvironment {
     }
     
     @Override
-    public void cleanup(FailoverFileReplication ffr) throws IOException, SQLException {
+    public void cleanup(FailoverFileReplication ffr) throws RemoteException {
         try {
             synchronized(unixFileCacheLock) {
                 lastFiles.remove(ffr);

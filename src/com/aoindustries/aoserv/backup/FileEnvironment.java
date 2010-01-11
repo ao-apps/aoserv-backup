@@ -7,15 +7,17 @@ package com.aoindustries.aoserv.backup;
  */
 import com.aoindustries.aoserv.client.FailoverFileReplication;
 import com.aoindustries.aoserv.client.FileBackupSetting;
-import com.aoindustries.aoserv.client.IPAddress;
+import com.aoindustries.aoserv.client.validator.InetAddress;
+import com.aoindustries.aoserv.client.validator.MySQLServerName;
 import com.aoindustries.io.FilesystemIterator;
 import com.aoindustries.io.FilesystemIteratorRule;
 import com.aoindustries.io.unix.UnixFile;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
-import java.sql.SQLException;
+import java.rmi.RemoteException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -58,7 +60,7 @@ abstract public class FileEnvironment implements BackupEnvironment {
     }
 
     @Override
-    public String[] getDirectoryList(FailoverFileReplication ffr, String filename) throws IOException {
+    public String[] getDirectoryList(FailoverFileReplication ffr, String filename) {
         return getFile(ffr, filename).list();
     }
 
@@ -93,7 +95,7 @@ abstract public class FileEnvironment implements BackupEnvironment {
     }
 
     @Override
-    public InputStream getInputStream(FailoverFileReplication ffr, String filename) throws IOException {
+    public InputStream getInputStream(FailoverFileReplication ffr, String filename) throws FileNotFoundException {
         return new FileInputStream(getFile(ffr, filename));
     }
 
@@ -103,20 +105,20 @@ abstract public class FileEnvironment implements BackupEnvironment {
     }
 
     @Override
-    public int getFailoverBatchSize(FailoverFileReplication ffr) throws IOException, SQLException {
+    public int getFailoverBatchSize(FailoverFileReplication ffr) throws RemoteException {
         return 1000;
     }
 
     @Override
-    public void preBackup(FailoverFileReplication ffr) throws IOException, SQLException {
+    public void preBackup(FailoverFileReplication ffr) {
     }
 
     @Override
-    public void init(FailoverFileReplication ffr) throws IOException, SQLException {
+    public void init(FailoverFileReplication ffr) throws RemoteException {
     }
 
     @Override
-    public void cleanup(FailoverFileReplication ffr) throws IOException, SQLException {
+    public void cleanup(FailoverFileReplication ffr) throws RemoteException {
         synchronized(fileCacheLock) {
             lastFilenames.remove(ffr);
             lastFiles.remove(ffr);
@@ -124,11 +126,11 @@ abstract public class FileEnvironment implements BackupEnvironment {
     }
 
     @Override
-    public void postBackup(FailoverFileReplication ffr) throws IOException, SQLException {
+    public void postBackup(FailoverFileReplication ffr) {
     }
 
     @Override
-    public Iterator<String> getFilenameIterator(FailoverFileReplication ffr) throws IOException, SQLException {
+    public Iterator<String> getFilenameIterator(FailoverFileReplication ffr) throws IOException {
         // Build the skip list
         Map<String,FilesystemIteratorRule> filesystemRules = getFilesystemIteratorRules(ffr);
         Map<String,FilesystemIteratorRule> filesystemPrefixRules = getFilesystemIteratorPrefixRules(ffr);
@@ -149,36 +151,38 @@ abstract public class FileEnvironment implements BackupEnvironment {
      * values returned here.  The returned map may be modified, to maintain
      * internal consistency, return a copy of the map if needed.
      */
-    protected abstract Map<String,FilesystemIteratorRule> getFilesystemIteratorRules(FailoverFileReplication ffr) throws IOException, SQLException;
+    protected abstract Map<String,FilesystemIteratorRule> getFilesystemIteratorRules(FailoverFileReplication ffr) throws RemoteException;
 
     /**
      * Gets the default set of filesystem prefix rules for this environment.
      */
-    protected abstract Map<String,FilesystemIteratorRule> getFilesystemIteratorPrefixRules(FailoverFileReplication ffr) throws IOException, SQLException;
+    protected abstract Map<String,FilesystemIteratorRule> getFilesystemIteratorPrefixRules(FailoverFileReplication ffr);
 
     @Override
-    public String getDefaultSourceIPAddress() throws IOException, SQLException {
-        return IPAddress.WILDCARD_IP;
+    public InetAddress getDefaultSourceIPAddress() throws RemoteException {
+        return InetAddress.UNSPECIFIED;
     }
 
     @Override
-    public List<String> getReplicatedMySQLServers(FailoverFileReplication ffr) throws IOException, SQLException {
+    public List<MySQLServerName> getReplicatedMySQLServers(FailoverFileReplication ffr) {
         return Collections.emptyList();
     }
 
     @Override
-    public List<String> getReplicatedMySQLMinorVersions(FailoverFileReplication ffr) throws IOException, SQLException {
+    public List<String> getReplicatedMySQLMinorVersions(FailoverFileReplication ffr) {
         return Collections.emptyList();
     }
-    
+
+    private static final Random random = new Random();
+
     /**
      * Uses the random source from AOServClient
      */
     @Override
-    public Random getRandom() throws IOException, SQLException {
-        return getConnector().getRandom();
+    public Random getRandom() {
+        return random;
     }
-    
+
     @Override
     public String getServerPath(FailoverFileReplication ffr, String filename) {
         String serverPath;
