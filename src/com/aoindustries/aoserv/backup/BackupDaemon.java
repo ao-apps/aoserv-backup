@@ -573,7 +573,7 @@ final public class BackupDaemon {
                 boolean isSuccessful=false;
                 try {
                     // Get the connection to the daemon
-                    AOServer.DaemonAccess daemonAccess = conn.getFailoverFileReplications().requestReplicationDaemonAccess(ffr);
+                    AOServer.DaemonAccess daemonAccess = ffr.requestReplicationDaemonAccess();
 
                     // First, the specific source address from ffr is used
                     InetAddress sourceIPAddress = ffr.getConnectFrom();
@@ -938,7 +938,7 @@ final public class BackupDaemon {
                     for(int c=0;c<10;c++) {
                         // Try in a loop with delay in case master happens to be restarting
                         try {
-                            conn.getFailoverFileLogs().addFailoverFileLog(ffr, new Timestamp(startTime), new Timestamp(System.currentTimeMillis()), scanned, updated, rawBytesOut+rawBytesIn, isSuccessful);
+                            ffr.addFailoverFileLog(new Timestamp(startTime), new Timestamp(System.currentTimeMillis()), scanned, updated, rawBytesOut+rawBytesIn, isSuccessful);
                             break;
                         } catch(RuntimeException err) {
                             if(c>=10) {
