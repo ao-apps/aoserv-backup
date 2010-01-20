@@ -141,7 +141,7 @@ public interface BackupEnvironment {
     Iterator<String> getFilenameIterator(FailoverFileReplication ffr) throws IOException;
 
     /**
-     * Gets the default source IP address or <code>InetAddress.UNSPECIFIED</code> to use the system default.
+     * Gets the default source IP address or <code>null</code> to use the system default.
      */
     InetAddress getDefaultSourceIPAddress() throws IOException;
 

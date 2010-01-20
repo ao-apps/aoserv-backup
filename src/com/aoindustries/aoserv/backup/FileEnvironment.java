@@ -160,7 +160,7 @@ abstract public class FileEnvironment implements BackupEnvironment {
 
     @Override
     public InetAddress getDefaultSourceIPAddress() throws RemoteException {
-        return InetAddress.UNSPECIFIED;
+        return null;
     }
 
     @Override
