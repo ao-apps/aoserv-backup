@@ -40,12 +40,12 @@ public interface BackupEnvironment {
     /**
      * Gets the user ID
      */
-    int getUID(FailoverFileReplication ffr, String filename) throws IOException;
+    int getUid(FailoverFileReplication ffr, String filename) throws IOException;
 
     /**
      * Gets the group ID
      */
-    int getGID(FailoverFileReplication ffr, String filename) throws IOException;
+    int getGid(FailoverFileReplication ffr, String filename) throws IOException;
 
     /**
      * Gets the modified time

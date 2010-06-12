@@ -65,12 +65,12 @@ abstract public class FileEnvironment implements BackupEnvironment {
     }
 
     @Override
-    public int getUID(FailoverFileReplication ffr, String filename) throws IOException {
+    public int getUid(FailoverFileReplication ffr, String filename) throws IOException {
         return UnixFile.ROOT_UID;
     }
 
     @Override
-    public int getGID(FailoverFileReplication ffr, String filename) throws IOException {
+    public int getGid(FailoverFileReplication ffr, String filename) throws IOException {
         return UnixFile.ROOT_GID;
     }
 

@@ -70,13 +70,13 @@ abstract public class UnixFileEnvironment extends FileEnvironment {
     }
 
     @Override
-    public int getUID(FailoverFileReplication ffr, String filename) throws IOException {
-        return getStat(ffr, filename).getUID();
+    public int getUid(FailoverFileReplication ffr, String filename) throws IOException {
+        return getStat(ffr, filename).getUid();
     }
 
     @Override
-    public int getGID(FailoverFileReplication ffr, String filename) throws IOException {
-        return getStat(ffr, filename).getGID();
+    public int getGid(FailoverFileReplication ffr, String filename) throws IOException {
+        return getStat(ffr, filename).getGid();
     }
 
     @Override

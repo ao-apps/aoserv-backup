@@ -193,7 +193,7 @@ final public class BackupDaemon {
             this.originalFfr = ffr;
         }
 
-        public int getBitRate() {
+        public Long getBitRate() {
             try {
                 // Try to get the latest version of originalFfr
                 FailoverFileReplication newFfr = originalFfr.getService().get(originalFfr.getKey());
@@ -676,8 +676,8 @@ final public class BackupDaemon {
                                                     // Get all the values first to avoid FileNotFoundException in middle of protocol
                                                     boolean isRegularFile = UnixFile.isRegularFile(mode);
                                                     long size = isRegularFile?environment.getLength(ffr, filename):-1;
-                                                    int uid = environment.getUID(ffr, filename);
-                                                    int gid = environment.getGID(ffr, filename);
+                                                    int uid = environment.getUid(ffr, filename);
+                                                    int gid = environment.getGid(ffr, filename);
                                                     boolean isSymLink = UnixFile.isSymLink(mode);
                                                     long modifyTime = isSymLink?-1:environment.getModifyTime(ffr, filename);
                                                     //if(modifyTime<1000 && !isSymLink && log.isWarnEnabled()) log.warn("Non-symlink modifyTime<1000: "+filename+": "+modifyTime);
