@@ -122,7 +122,7 @@ final public class BackupDaemon {
             Server thisServer = environment.getThisServer();
             Logger logger = environment.getLogger();
             boolean isDebug = logger.isLoggable(Level.FINE);
-            //AOServConnector conn = environment.getConnector();
+            //AOServConnector<?,?> conn = environment.getConnector();
             List<FailoverFileReplication> removedList = new ArrayList<FailoverFileReplication>(threads.keySet());
             for(FailoverFileReplication ffr : thisServer.getFailoverFileReplications()) {
                 removedList.remove(ffr);
@@ -624,7 +624,7 @@ final public class BackupDaemon {
                             int len = replicatedMySQLServers.size();
                             rawOut.writeCompressedInt(len);
                             for(int c=0;c<len;c++) {
-                                rawOut.writeUTF(replicatedMySQLServers.get(c).getName());
+                                rawOut.writeUTF(replicatedMySQLServers.get(c).toString());
                                 rawOut.writeUTF(replicatedMySQLMinorVersions.get(c));
                             }
                         }
