@@ -80,7 +80,7 @@ public interface BackupEnvironment {
     /**
      * Gets the connection to the master server.
      */
-    AOServConnector<?,?> getConnector() throws RemoteException;
+    AOServConnector getConnector() throws RemoteException;
 
     /**
      * Gets the server this process is running on.

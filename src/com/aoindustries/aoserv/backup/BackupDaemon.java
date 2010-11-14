@@ -1,10 +1,10 @@
-package com.aoindustries.aoserv.backup;
-
 /*
  * Copyright 2001-2010 by AO Industries, Inc.,
  * 7262 Bull Pen Cir, Mobile, Alabama, 36695, U.S.A.
  * All rights reserved.
  */
+package com.aoindustries.aoserv.backup;
+
 import com.aoindustries.aoserv.client.AOServClientConfiguration;
 import com.aoindustries.aoserv.client.AOServConnector;
 import com.aoindustries.aoserv.client.AOServer;
@@ -14,6 +14,8 @@ import com.aoindustries.aoserv.client.FailoverFileSchedule;
 import com.aoindustries.aoserv.client.IndexedSet;
 import com.aoindustries.aoserv.client.MethodColumn;
 import com.aoindustries.aoserv.client.Server;
+import com.aoindustries.aoserv.client.command.AddFailoverFileLogCommand;
+import com.aoindustries.aoserv.client.command.RequestReplicationDaemonAccessCommand;
 import com.aoindustries.aoserv.client.validator.InetAddress;
 import com.aoindustries.aoserv.client.validator.MySQLServerName;
 import com.aoindustries.aoserv.daemon.client.AOServDaemonConnection;
@@ -84,11 +86,12 @@ final public class BackupDaemon {
      */
     synchronized public void start() throws RemoteException {
         if(!isStarted) {
-            AOServConnector<?,?> conn = environment.getConnector();
+            AOServConnector conn = environment.getConnector();
             conn.getFailoverFileReplications().getTable().addTableListener(tableListener);
             isStarted = true;
             new Thread(
                 new Runnable() {
+                    @Override
                     public void run() {
                         while(true) {
                             try {
@@ -122,7 +125,7 @@ final public class BackupDaemon {
             Server thisServer = environment.getThisServer();
             Logger logger = environment.getLogger();
             boolean isDebug = logger.isLoggable(Level.FINE);
-            //AOServConnector<?,?> conn = environment.getConnector();
+            //AOServConnector conn = environment.getConnector();
             List<FailoverFileReplication> removedList = new ArrayList<FailoverFileReplication>(threads.keySet());
             for(FailoverFileReplication ffr : thisServer.getFailoverFileReplications()) {
                 removedList.remove(ffr);
@@ -155,7 +158,7 @@ final public class BackupDaemon {
      */
     synchronized public void stop() throws RemoteException {
         if(isStarted) {
-            AOServConnector<?,?> conn = environment.getConnector();
+            AOServConnector conn = environment.getConnector();
             conn.getFailoverFileReplications().getTable().removeTableListener(tableListener);
             isStarted = false;
             Logger logger = environment.getLogger();
@@ -193,10 +196,11 @@ final public class BackupDaemon {
             this.originalFfr = ffr;
         }
 
+        @Override
         public Long getBitRate() {
             try {
                 // Try to get the latest version of originalFfr
-                FailoverFileReplication newFfr = originalFfr.getService().get(originalFfr.getKey());
+                FailoverFileReplication newFfr = originalFfr.getConnector().getFailoverFileReplications().get(originalFfr.getKey());
                 if(newFfr!=null) return newFfr.getBitRate();
             } catch(RemoteException err) {
                 environment.getLogger().logp(Level.SEVERE, DynamicBitRateProvider.class.getName(), "getBitRate", null, err);
@@ -206,6 +210,7 @@ final public class BackupDaemon {
             return originalFfr.getBitRate();
         }
 
+        @Override
         public int getBlockSize() {
             return originalFfr.getBlockSize();
         }
@@ -282,6 +287,7 @@ final public class BackupDaemon {
          * Each replication runs in its own thread.  Also, each replication may run concurrently with other replications.
          * However, each replication may not run concurrently with itself as this could cause problems on the server.
          */
+        @Override
         public void run() {
             final Thread currentThread = Thread.currentThread();
             while(true) {
@@ -563,7 +569,7 @@ final public class BackupDaemon {
                 if(isDebug) logger.logp(Level.FINE, getClass().getName(), "backupPass", (retention>1 ? "Backup: " : "Failover: ") + "useCompression="+useCompression);
                 if(isDebug) logger.logp(Level.FINE, getClass().getName(), "backupPass", (retention>1 ? "Backup: " : "Failover: ") + "retention="+retention);
 
-                AOServConnector<?,?> conn = environment.getConnector();
+                AOServConnector conn = environment.getConnector();
 
                 // Keep statistics during the replication
                 int scanned=0;
@@ -573,7 +579,7 @@ final public class BackupDaemon {
                 boolean isSuccessful=false;
                 try {
                     // Get the connection to the daemon
-                    AOServer.DaemonAccess daemonAccess = ffr.requestReplicationDaemonAccess();
+                    AOServer.DaemonAccess daemonAccess = new RequestReplicationDaemonAccessCommand(ffr).execute(conn);
 
                     // First, the specific source address from ffr is used
                     InetAddress sourceIPAddress = ffr.getConnectFrom();
@@ -938,7 +944,7 @@ final public class BackupDaemon {
                     for(int c=0;c<10;c++) {
                         // Try in a loop with delay in case master happens to be restarting
                         try {
-                            ffr.addFailoverFileLog(new Timestamp(startTime), new Timestamp(System.currentTimeMillis()), scanned, updated, rawBytesOut+rawBytesIn, isSuccessful);
+                            new AddFailoverFileLogCommand(ffr, new Timestamp(startTime), new Timestamp(System.currentTimeMillis()), scanned, updated, rawBytesOut+rawBytesIn, isSuccessful).execute(environment.getConnector());
                             break;
                         } catch(RuntimeException err) {
                             if(c>=10) {
