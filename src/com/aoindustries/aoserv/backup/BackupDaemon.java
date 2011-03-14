@@ -351,7 +351,7 @@ final public class BackupDaemon {
                         if(newFFR==null) {
                             // Don't try to run removed ffr
                             if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "Replication removed");
-                        } else if(!newFFR.getEnabled()) {
+                        } else if(!newFFR.isEnabled()) {
                             // Don't try to run disabled ffr
                             if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "Replication not enabled");
                         } else {
@@ -366,7 +366,7 @@ final public class BackupDaemon {
                             AOServer thisAOServer = thisServer.getAoServer();
                             AOServer failoverServer = thisAOServer==null ? null : thisAOServer.getFailoverServer();
                             if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "failoverServer="+failoverServer);
-                            AOServer toServer=newFFR.getBackupPartition().getAOServer();
+                            AOServer toServer=newFFR.getBackupPartition().getAoServer();
                             if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "toServer="+toServer);
                             synchronized(this) {
                                 if(currentThread!=thread) return;
@@ -554,7 +554,7 @@ final public class BackupDaemon {
                 }
                 final Server thisServer = environment.getThisServer();
                 final int failoverBatchSize = environment.getFailoverBatchSize(ffr);
-                final AOServer toServer=ffr.getBackupPartition().getAOServer();
+                final AOServer toServer=ffr.getBackupPartition().getAoServer();
                 final boolean useCompression = ffr.getUseCompression();
                 final short retention = ffr.getRetention().getDays();
                 synchronized(this) {
