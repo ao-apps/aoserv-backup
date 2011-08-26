@@ -813,6 +813,7 @@ final public class BackupDaemon {
                                                                     }
                                                                     if(blockLen>0) {
                                                                         outgoing.write(AOServDaemonProtocol.NEXT);
+                                                                        assert blockLen <= Short.MAX_VALUE;
                                                                         outgoing.writeShort(blockLen);
                                                                         outgoing.write(buff, 0, blockLen);
                                                                     }

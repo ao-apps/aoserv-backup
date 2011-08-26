@@ -1,10 +1,10 @@
-package com.aoindustries.aoserv.backup;
-
 /*
  * Copyright 2003-2011 by AO Industries, Inc.,
  * 7262 Bull Pen Cir, Mobile, Alabama, 36695, U.S.A.
  * All rights reserved.
  */
+package com.aoindustries.aoserv.backup;
+
 import com.aoindustries.aoserv.client.FailoverFileReplication;
 import com.aoindustries.aoserv.client.FileBackupSetting;
 import com.aoindustries.aoserv.client.validator.InetAddress;
@@ -138,7 +138,7 @@ abstract public class FileEnvironment implements BackupEnvironment {
         for(FileBackupSetting setting : ffr.getFileBackupSettings()) {
             filesystemRules.put(
                 setting.getPath(),
-                setting.getBackupEnabled() ? FilesystemIteratorRule.OK : FilesystemIteratorRule.SKIP
+                setting.isBackupEnabled() ? FilesystemIteratorRule.OK : FilesystemIteratorRule.SKIP
             );
         }
 
