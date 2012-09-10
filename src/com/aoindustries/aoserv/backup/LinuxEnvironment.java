@@ -1,12 +1,14 @@
 package com.aoindustries.aoserv.backup;
 
 /*
- * Copyright 2008-2011 by AO Industries, Inc.,
+ * Copyright 2008-2009 by AO Industries, Inc.,
  * 7262 Bull Pen Cir, Mobile, Alabama, 36695, U.S.A.
  * All rights reserved.
  */
 import com.aoindustries.aoserv.client.FailoverFileReplication;
 import com.aoindustries.io.FilesystemIteratorRule;
+import java.io.IOException;
+import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -19,7 +21,7 @@ import java.util.Map;
 abstract public class LinuxEnvironment extends UnixFileEnvironment {
     
     @Override
-    protected Map<String,FilesystemIteratorRule> getFilesystemIteratorRules(FailoverFileReplication ffr) {
+    protected Map<String,FilesystemIteratorRule> getFilesystemIteratorRules(FailoverFileReplication ffr) throws IOException, SQLException {
         Map<String,FilesystemIteratorRule> filesystemRules=new HashMap<String,FilesystemIteratorRule>();
         filesystemRules.put("/dev/log", FilesystemIteratorRule.SKIP);
         filesystemRules.put("/dev/pts/", FilesystemIteratorRule.SKIP);
@@ -31,7 +33,7 @@ abstract public class LinuxEnvironment extends UnixFileEnvironment {
     }
 
     @Override
-    protected Map<String,FilesystemIteratorRule> getFilesystemIteratorPrefixRules(FailoverFileReplication ffr) {
+    protected Map<String,FilesystemIteratorRule> getFilesystemIteratorPrefixRules(FailoverFileReplication ffr) throws IOException, SQLException {
         Map<String,FilesystemIteratorRule> filesystemPrefixRules = new HashMap<String, FilesystemIteratorRule>();
         return filesystemPrefixRules;
     }

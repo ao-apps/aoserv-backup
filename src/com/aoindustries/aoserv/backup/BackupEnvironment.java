@@ -1,21 +1,20 @@
-package com.aoindustries.aoserv.backup;
-
 /*
- * Copyright 2003-2011 by AO Industries, Inc.,
+ * Copyright 2003-2012 by AO Industries, Inc.,
  * 7262 Bull Pen Cir, Mobile, Alabama, 36695, U.S.A.
  * All rights reserved.
  */
+package com.aoindustries.aoserv.backup;
+
 import com.aoindustries.aoserv.client.AOServConnector;
 import com.aoindustries.aoserv.client.FailoverFileReplication;
 import com.aoindustries.aoserv.client.Server;
-import com.aoindustries.aoserv.client.validator.InetAddress;
-import com.aoindustries.aoserv.client.validator.MySQLServerName;
 import java.io.IOException;
 import java.io.InputStream;
-import java.rmi.RemoteException;
+import java.sql.SQLException;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
+import java.util.Set;
 import java.util.logging.Logger;
 
 /**
@@ -80,18 +79,18 @@ public interface BackupEnvironment {
     /**
      * Gets the connection to the master server.
      */
-    AOServConnector getConnector() throws RemoteException;
+    AOServConnector getConnector() throws IOException, SQLException;
 
     /**
      * Gets the server this process is running on.
      */
-    Server getThisServer() throws RemoteException;
+    Server getThisServer() throws IOException, SQLException;
 
     /**
      * Gets the number of items per batch.  A higher value will consume
      * more RAM but better hide latency.
      */
-    int getFailoverBatchSize(FailoverFileReplication ffr) throws IOException;
+    int getFailoverBatchSize(FailoverFileReplication ffr) throws IOException, SQLException;
 
     /**
      * Called right before a backup pass begins.
@@ -105,7 +104,7 @@ public interface BackupEnvironment {
      *   <li>postBackup (only when backup pass successful)</li>
      * </ol>
      */
-    void preBackup(FailoverFileReplication ffr) throws IOException;
+    void preBackup(FailoverFileReplication ffr) throws IOException, SQLException;
 
     /**
      * Called before any backup-pass data is retrieved from the environment.
@@ -115,7 +114,7 @@ public interface BackupEnvironment {
      * @see  #cleanup(FailoverFileReplication)
      * @see  #preBackup(FailoverFileReplication)
      */
-    void init(FailoverFileReplication ffr) throws IOException;
+    void init(FailoverFileReplication ffr) throws IOException, SQLException;
 
     /**
      * Called in a finally block after any backup-pass completes, no data
@@ -125,7 +124,7 @@ public interface BackupEnvironment {
      * @see  #init(FailoverFileReplication)
      * @see  #preBackup(FailoverFileReplication)
      */
-    void cleanup(FailoverFileReplication ffr) throws IOException;
+    void cleanup(FailoverFileReplication ffr) throws IOException, SQLException;
 
     /**
      * Called right after a backup pass ends.
@@ -133,17 +132,23 @@ public interface BackupEnvironment {
      *
      * @see  #preBackup(FailoverFileReplication)
      */
-    void postBackup(FailoverFileReplication ffr) throws IOException;
+    void postBackup(FailoverFileReplication ffr) throws IOException, SQLException;
+
+    /**
+     * Gets the set of paths that must be found in the backup set.  These paths
+     * must not include any trailing separators.
+     */
+    Set<String> getRequiredFilenames(FailoverFileReplication ffr) throws IOException, SQLException;
 
     /**
      * Gets the <code>Iterator</code> of filenames or <code>null</code> if completed.
      */
-    Iterator<String> getFilenameIterator(FailoverFileReplication ffr) throws IOException;
+    Iterator<String> getFilenameIterator(FailoverFileReplication ffr) throws IOException, SQLException;
 
     /**
-     * Gets the default source IP address or <code>null</code> to use the system default.
+     * Gets the default source IP address or <code>IPAddress.WILDCARD_IP</code> to use the system default.
      */
-    InetAddress getDefaultSourceIPAddress() throws IOException;
+    String getDefaultSourceIPAddress() throws IOException, SQLException;
 
     /**
      * Gets the list of MySQL server instance names that are being replicated.
@@ -152,7 +157,7 @@ public interface BackupEnvironment {
      * 
      * @see  #getReplicatedMySQLMinorVersions(FailoverFileReplication)
      */
-    List<MySQLServerName> getReplicatedMySQLServers(FailoverFileReplication ffr) throws IOException;
+    List<String> getReplicatedMySQLServers(FailoverFileReplication ffr) throws IOException, SQLException;
 
     /**
      * Gets the list of MySQL server versions (in the same order as the list returned by <code>getReplicatedMySQLServers</code>.
@@ -161,14 +166,14 @@ public interface BackupEnvironment {
      * 
      * @see  #getReplicatedMySQLServers(FailoverFileReplication)
      */
-    List<String> getReplicatedMySQLMinorVersions(FailoverFileReplication ffr) throws IOException;
+    List<String> getReplicatedMySQLMinorVersions(FailoverFileReplication ffr) throws IOException, SQLException;
 
     /**
      * Gets a Random source for the backup daemon.  This does not need to be cryptographically strong
      * because it is only used to randomize some sleep times to distribute load on the server
      * processes.
      */
-    Random getRandom();
+    Random getRandom() throws IOException, SQLException;
 
     /**
      * Gets the logger for this environment.

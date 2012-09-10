@@ -1,5 +1,5 @@
 /*
- * Copyright 2001-2011 by AO Industries, Inc.,
+ * Copyright 2001-2012 by AO Industries, Inc.,
  * 7262 Bull Pen Cir, Mobile, Alabama, 36695, U.S.A.
  * All rights reserved.
  */
@@ -11,13 +11,7 @@ import com.aoindustries.aoserv.client.AOServer;
 import com.aoindustries.aoserv.client.FailoverFileLog;
 import com.aoindustries.aoserv.client.FailoverFileReplication;
 import com.aoindustries.aoserv.client.FailoverFileSchedule;
-import com.aoindustries.aoserv.client.IndexedSet;
-import com.aoindustries.aoserv.client.MethodColumn;
 import com.aoindustries.aoserv.client.Server;
-import com.aoindustries.aoserv.client.command.AddFailoverFileLogCommand;
-import com.aoindustries.aoserv.client.command.RequestReplicationDaemonAccessCommand;
-import com.aoindustries.aoserv.client.validator.InetAddress;
-import com.aoindustries.aoserv.client.validator.MySQLServerName;
 import com.aoindustries.aoserv.daemon.client.AOServDaemonConnection;
 import com.aoindustries.aoserv.daemon.client.AOServDaemonConnector;
 import com.aoindustries.aoserv.daemon.client.AOServDaemonProtocol;
@@ -32,25 +26,26 @@ import com.aoindustries.io.TerminalWriter;
 import com.aoindustries.io.unix.UnixFile;
 import com.aoindustries.md5.MD5;
 import com.aoindustries.sql.SQLUtility;
-import com.aoindustries.table.Row;
 import com.aoindustries.table.Table;
 import com.aoindustries.table.TableListener;
 import com.aoindustries.util.BufferManager;
 import com.aoindustries.util.ErrorPrinter;
 import java.io.DataOutputStream;
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStreamWriter;
-import java.rmi.RemoteException;
-import java.sql.Timestamp;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -70,12 +65,14 @@ final public class BackupDaemon {
         this.environment=environment;
     }
 
-    final private TableListener<MethodColumn,Row> tableListener = new TableListener<MethodColumn,Row>() {
+    final private TableListener tableListener = new TableListener() {
         @Override
-        public void tableUpdated(Table<? extends MethodColumn,? extends Row> table) {
+        public void tableUpdated(Table<?> table) {
             try {
                 verifyThreads();
-            } catch(RemoteException err) {
+            } catch(IOException err) {
+                environment.getLogger().logp(Level.SEVERE, getClass().getName(), "tableUpdated", null, err);
+            } catch(SQLException err) {
                 environment.getLogger().logp(Level.SEVERE, getClass().getName(), "tableUpdated", null, err);
             }
         }
@@ -84,14 +81,13 @@ final public class BackupDaemon {
     /**
      * Starts the backup daemon (as one thread per FailoverFileReplication.
      */
-    synchronized public void start() throws RemoteException {
+    synchronized public void start() throws IOException, SQLException {
         if(!isStarted) {
             AOServConnector conn = environment.getConnector();
-            conn.getFailoverFileReplications().getTable().addTableListener(tableListener);
+            conn.getFailoverFileReplications().addTableListener(tableListener);
             isStarted = true;
             new Thread(
                 new Runnable() {
-                    @Override
                     public void run() {
                         while(true) {
                             try {
@@ -104,7 +100,14 @@ final public class BackupDaemon {
                                 } catch(InterruptedException err2) {
                                     environment.getLogger().logp(Level.WARNING, getClass().getName(), "run", null, err2);
                                 }
-                            } catch(RemoteException err) {
+                            } catch(IOException err) {
+                                environment.getLogger().logp(Level.SEVERE, getClass().getName(), "run", null, err);
+                                try {
+                                    Thread.sleep(60000);
+                                } catch(InterruptedException err2) {
+                                    environment.getLogger().logp(Level.WARNING, getClass().getName(), "run", null, err2);
+                                }
+                            } catch(SQLException err) {
                                 environment.getLogger().logp(Level.SEVERE, getClass().getName(), "run", null, err);
                                 try {
                                     Thread.sleep(60000);
@@ -119,7 +122,7 @@ final public class BackupDaemon {
         }
     }
 
-    synchronized private void verifyThreads() throws RemoteException {
+    synchronized private void verifyThreads() throws IOException, SQLException {
         // Ignore events coming in after shutdown
         if(isStarted) {
             Server thisServer = environment.getThisServer();
@@ -156,10 +159,10 @@ final public class BackupDaemon {
     /**
      * Stops the backup daemon and any currently running backups.
      */
-    synchronized public void stop() throws RemoteException {
+    synchronized public void stop() throws IOException, SQLException {
         if(isStarted) {
             AOServConnector conn = environment.getConnector();
-            conn.getFailoverFileReplications().getTable().removeTableListener(tableListener);
+            conn.getFailoverFileReplications().removeTableListener(tableListener);
             isStarted = false;
             Logger logger = environment.getLogger();
             boolean isDebug = logger.isLoggable(Level.FINE);
@@ -200,9 +203,11 @@ final public class BackupDaemon {
         public Long getBitRate() {
             try {
                 // Try to get the latest version of originalFfr
-                FailoverFileReplication newFfr = originalFfr.getConnector().getFailoverFileReplications().get(originalFfr.getKey());
+                FailoverFileReplication newFfr = originalFfr.getTable().get(originalFfr.getKey());
                 if(newFfr!=null) return newFfr.getBitRate();
-            } catch(RemoteException err) {
+            } catch(IOException err) {
+                environment.getLogger().logp(Level.SEVERE, DynamicBitRateProvider.class.getName(), "getBitRate", null, err);
+            } catch(SQLException err) {
                 environment.getLogger().logp(Level.SEVERE, DynamicBitRateProvider.class.getName(), "getBitRate", null, err);
             } catch(RuntimeException err) {
                 environment.getLogger().logp(Level.SEVERE, DynamicBitRateProvider.class.getName(), "getBitRate", null, err);
@@ -210,7 +215,6 @@ final public class BackupDaemon {
             return originalFfr.getBitRate();
         }
 
-        @Override
         public int getBlockSize() {
             return originalFfr.getBlockSize();
         }
@@ -226,14 +230,21 @@ final public class BackupDaemon {
         }
 
         /**
-         * Gets the next filenames, up to batchSize.
+         * Gets the next filenames, up to batchSize, removing those found from required.
          * @return the number of files in the array, zero (0) indicates iteration has completed
          */
-        private static int getNextFilenames(Iterator<String> filenameIterator, String[] filenames, int batchSize) {
+        private static int getNextFilenames(Set<String> remainingRequiredFilenames, Iterator<String> filenameIterator, String[] filenames, int batchSize) throws IOException {
             int c=0;
             while(c<batchSize) {
                 if(!filenameIterator.hasNext()) break;
                 String filename = filenameIterator.next();
+                // Remove from required
+                String requiredFilename = filename;
+                if(requiredFilename.endsWith(File.separator)) {
+                    requiredFilename = requiredFilename.substring(0, requiredFilename.length()-1);
+                }
+                //System.err.println("DEBUG: BackupDaemon: filename="+filename);
+                remainingRequiredFilenames.remove(requiredFilename);
                 filenames[c++]=filename;
             }
             return c;
@@ -287,7 +298,6 @@ final public class BackupDaemon {
          * Each replication runs in its own thread.  Also, each replication may run concurrently with other replications.
          * However, each replication may not run concurrently with itself as this could cause problems on the server.
          */
-        @Override
         public void run() {
             final Thread currentThread = Thread.currentThread();
             while(true) {
@@ -303,14 +313,11 @@ final public class BackupDaemon {
                     // Get the last start time and success flag from the database (will be cached locally unless an error occurs
                     long lastStartTime = -1;
                     boolean lastPassSuccessful = false;
-                    IndexedSet<FailoverFileLog> ffls = ffr.getFailoverFileLogs();
+                    List<FailoverFileLog> ffls = ffr.getFailoverFileLogs(1);
                     if(!ffls.isEmpty()) {
-                        FailoverFileLog lastLog = null;
-                        for(FailoverFileLog ffl : ffls) {
-                            if(lastLog==null || ffl.getEndTime().compareTo(lastLog.getEndTime())>0) lastLog = ffl;
-                        }
+                        FailoverFileLog lastLog = ffls.get(0);
                         if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "lastLog="+lastLog);
-                        lastStartTime = lastLog.getStartTime().getTime();
+                        lastStartTime = lastLog.getStartTime();
                         if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "lastStartTime="+SQLUtility.getDateTime(lastStartTime));
                         lastPassSuccessful = lastLog.isSuccessful();
                         if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "lastPassSuccessful="+lastPassSuccessful);
@@ -343,7 +350,7 @@ final public class BackupDaemon {
                         }
 
                         // Get the latest ffr object (if cache was invalidated) to adhere to changes in enabled flag
-                        FailoverFileReplication newFFR = environment.getConnector().getFailoverFileReplications().get(ffr.getKey());
+                        FailoverFileReplication newFFR = environment.getConnector().getFailoverFileReplications().get(ffr.getPkey());
                         synchronized(this) {
                             if(currentThread!=thread) return;
                         }
@@ -351,7 +358,7 @@ final public class BackupDaemon {
                         if(newFFR==null) {
                             // Don't try to run removed ffr
                             if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "Replication removed");
-                        } else if(!newFFR.isEnabled()) {
+                        } else if(!newFFR.getEnabled()) {
                             // Don't try to run disabled ffr
                             if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "Replication not enabled");
                         } else {
@@ -363,10 +370,10 @@ final public class BackupDaemon {
                             if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "newFFR="+newFFR);
                             Server thisServer=environment.getThisServer();
                             if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "thisServer="+thisServer);
-                            AOServer thisAOServer = thisServer.getAoServer();
+                            AOServer thisAOServer = thisServer.getAOServer();
                             AOServer failoverServer = thisAOServer==null ? null : thisAOServer.getFailoverServer();
                             if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "failoverServer="+failoverServer);
-                            AOServer toServer=newFFR.getBackupPartition().getAoServer();
+                            AOServer toServer=newFFR.getBackupPartition().getAOServer();
                             if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "toServer="+toServer);
                             synchronized(this) {
                                 if(currentThread!=thread) return;
@@ -416,7 +423,7 @@ final public class BackupDaemon {
                                 if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "Last check time in the future (time reset)");
                             } else {
                                 // If there is currently no schedule, this will not flag shouldRun and the check for 24-hours passed (above) will force the backup
-                                IndexedSet<FailoverFileSchedule> schedules = newFFR.getFailoverFileSchedules();
+                                List<FailoverFileSchedule> schedules = newFFR.getFailoverFileSchedules();
                                 synchronized(this) {
                                     if(currentThread!=thread) return;
                                 }
@@ -502,7 +509,20 @@ final public class BackupDaemon {
                                     } catch(InterruptedException err) {
                                         // May be interrupted by stop call
                                     }
-                                } catch(RemoteException T) {
+                                } catch(IOException T) {
+                                    environment.getLogger().logp(Level.SEVERE, getClass().getName(), "run", null, T);
+                                    synchronized(this) {
+                                        if(currentThread!=thread) return;
+                                    }
+                                    //Randomized sleep interval to reduce master load on startup (5-15 minutes)
+                                    int sleepyTime = 5*60*1000 + random.nextInt(10*60*1000);
+                                    if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "Sleeping for "+sleepyTime+" milliseconds after an error");
+                                    try {
+                                        Thread.sleep(sleepyTime); 
+                                    } catch(InterruptedException err) {
+                                        // May be interrupted by stop call
+                                    }
+                                } catch(SQLException T) {
                                     environment.getLogger().logp(Level.SEVERE, getClass().getName(), "run", null, T);
                                     synchronized(this) {
                                         if(currentThread!=thread) return;
@@ -538,7 +558,7 @@ final public class BackupDaemon {
             }
         }
 
-        private void backupPass(FailoverFileReplication ffr) throws IOException {
+        private void backupPass(FailoverFileReplication ffr) throws IOException, SQLException {
             final Thread currentThread = Thread.currentThread();
 
             environment.preBackup(ffr);
@@ -554,7 +574,7 @@ final public class BackupDaemon {
                 }
                 final Server thisServer = environment.getThisServer();
                 final int failoverBatchSize = environment.getFailoverBatchSize(ffr);
-                final AOServer toServer=ffr.getBackupPartition().getAoServer();
+                final AOServer toServer=ffr.getBackupPartition().getAOServer();
                 final boolean useCompression = ffr.getUseCompression();
                 final short retention = ffr.getRetention().getDays();
                 synchronized(this) {
@@ -569,8 +589,6 @@ final public class BackupDaemon {
                 if(isDebug) logger.logp(Level.FINE, getClass().getName(), "backupPass", (retention>1 ? "Backup: " : "Failover: ") + "useCompression="+useCompression);
                 if(isDebug) logger.logp(Level.FINE, getClass().getName(), "backupPass", (retention>1 ? "Backup: " : "Failover: ") + "retention="+retention);
 
-                AOServConnector conn = environment.getConnector();
-
                 // Keep statistics during the replication
                 int scanned=0;
                 int updated=0;
@@ -579,10 +597,10 @@ final public class BackupDaemon {
                 boolean isSuccessful=false;
                 try {
                     // Get the connection to the daemon
-                    AOServer.DaemonAccess daemonAccess = new RequestReplicationDaemonAccessCommand(ffr).execute(conn);
+                    AOServer.DaemonAccess daemonAccess = ffr.requestReplicationDaemonAccess();
 
                     // First, the specific source address from ffr is used
-                    InetAddress sourceIPAddress = ffr.getConnectFrom();
+                    String sourceIPAddress = ffr.getConnectFrom();
                     if(sourceIPAddress==null) {
                         sourceIPAddress = environment.getDefaultSourceIPAddress();
                     }
@@ -598,8 +616,8 @@ final public class BackupDaemon {
                         null,
                         toServer.getPoolSize(),
                         AOPool.DEFAULT_MAX_CONNECTION_AGE,
-                        AOServClientConfiguration.getTrustStorePath(),
-                        AOServClientConfiguration.getTrustStorePassword(),
+                        AOServClientConfiguration.getSslTruststorePath(),
+                        AOServClientConfiguration.getSslTruststorePassword(),
                         environment.getLogger()
                     );
                     AOServDaemonConnection daemonConn=daemonConnector.getConnection();
@@ -625,12 +643,12 @@ final public class BackupDaemon {
                         rawOut.writeShort(month);
                         rawOut.writeShort(day);
                         if(retention==1) {
-                            List<MySQLServerName> replicatedMySQLServers = environment.getReplicatedMySQLServers(ffr);
+                            List<String> replicatedMySQLServers = environment.getReplicatedMySQLServers(ffr);
                             List<String> replicatedMySQLMinorVersions = environment.getReplicatedMySQLMinorVersions(ffr);
                             int len = replicatedMySQLServers.size();
                             rawOut.writeCompressedInt(len);
                             for(int c=0;c<len;c++) {
-                                rawOut.writeUTF(replicatedMySQLServers.get(c).toString());
+                                rawOut.writeUTF(replicatedMySQLServers.get(c));
                                 rawOut.writeUTF(replicatedMySQLMinorVersions.get(c));
                             }
                         }
@@ -661,6 +679,7 @@ final public class BackupDaemon {
                                 int[] results = new int[failoverBatchSize];
                                 long[][] md5His = useCompression ? new long[failoverBatchSize][] : null;
                                 long[][] md5Los = useCompression ? new long[failoverBatchSize][] : null;
+                                final Set<String> remainingRequiredFilenames = new LinkedHashSet<String>(environment.getRequiredFilenames(ffr));
                                 byte[] buff=BufferManager.getBytes();
                                 byte[] chunkBuffer = new byte[AOServDaemonProtocol.FAILOVER_FILE_REPLICATION_CHUNK_SIZE];
                                 try {
@@ -669,7 +688,7 @@ final public class BackupDaemon {
                                         synchronized(this) {
                                             if(currentThread!=thread) return;
                                         }
-                                        int batchSize=getNextFilenames(filenameIterator, filenames, failoverBatchSize);
+                                        int batchSize=getNextFilenames(remainingRequiredFilenames, filenameIterator, filenames, failoverBatchSize);
                                         if(batchSize==0) break;
 
                                         out.writeCompressedInt(batchSize);
@@ -694,8 +713,8 @@ final public class BackupDaemon {
                                                         } catch(SecurityException err) {
                                                             environment.getLogger().logp(Level.SEVERE, getClass().getName(), "backupPass", "SecurityException trying to readlink: "+filename, err);
                                                             throw err;
-                                                        } catch(RemoteException err) {
-                                                            environment.getLogger().logp(Level.SEVERE, getClass().getName(), "backupPass", "RemoteException trying to readlink: "+filename, err);
+                                                        } catch(IOException err) {
+                                                            environment.getLogger().logp(Level.SEVERE, getClass().getName(), "backupPass", "IOException trying to readlink: "+filename, err);
                                                             throw err;
                                                         }
                                                     } else {
@@ -770,8 +789,9 @@ final public class BackupDaemon {
                                                 }
                                             }
                                         } else {
-                                            if (result == AOServDaemonProtocol.REMOTE_EXCEPTION) throw new RemoteException(in.readUTF());
-                                            else throw new RemoteException("Unknown result: " + result);
+                                            if (result == AOServDaemonProtocol.IO_EXCEPTION) throw new IOException(in.readUTF());
+                                            else if (result == AOServDaemonProtocol.SQL_EXCEPTION) throw new SQLException(in.readUTF());
+                                            else throw new IOException("Unknown result: " + result);
                                         }
                                         synchronized(this) {
                                             if(currentThread!=thread) return;
@@ -813,7 +833,6 @@ final public class BackupDaemon {
                                                                     }
                                                                     if(blockLen>0) {
                                                                         outgoing.write(AOServDaemonProtocol.NEXT);
-                                                                        assert blockLen <= Short.MAX_VALUE;
                                                                         outgoing.writeShort(blockLen);
                                                                         outgoing.write(buff, 0, blockLen);
                                                                     }
@@ -890,7 +909,7 @@ final public class BackupDaemon {
                                                         }
                                                         outgoing.write(AOServDaemonProtocol.DONE);
                                                     }
-                                                } else if(result!=AOServDaemonProtocol.FAILOVER_FILE_REPLICATION_NO_CHANGE) throw new RemoteException("Unknown result: "+result);
+                                                } else if(result!=AOServDaemonProtocol.FAILOVER_FILE_REPLICATION_NO_CHANGE) throw new IOException("Unknown result: "+result);
                                             }
                                         }
 
@@ -906,6 +925,14 @@ final public class BackupDaemon {
                                     BufferManager.release(buff);
                                 }
 
+                                // Error now if not all required have been found
+                                if(!remainingRequiredFilenames.isEmpty()) {
+                                    StringBuilder message = new StringBuilder("Required files not found.  Successfully sent all found, but not flagging the backup as successful because the following files were missing:");
+                                    for(String filename : remainingRequiredFilenames) {
+                                        message.append('\n').append(filename);
+                                    }
+                                    throw new IOException(message.toString());
+                                }
                                 // Tell the server we are finished
                                 synchronized(this) {
                                     if(currentThread!=thread) return;
@@ -923,8 +950,9 @@ final public class BackupDaemon {
                                 }
                                 result=in.read();
                                 if(result!=AOServDaemonProtocol.DONE) {
-                                    if (result == AOServDaemonProtocol.REMOTE_EXCEPTION) throw new RemoteException(in.readUTF());
-                                    else throw new RemoteException("Unknown result: " + result);
+                                    if (result == AOServDaemonProtocol.IO_EXCEPTION) throw new IOException(in.readUTF());
+                                    else if (result == AOServDaemonProtocol.SQL_EXCEPTION) throw new SQLException(in.readUTF());
+                                    else throw new IOException("Unknown result: " + result);
                                 }
                             } finally {
                                 // Store the bytes transferred
@@ -932,8 +960,9 @@ final public class BackupDaemon {
                                 rawBytesIn=rawBytesInStream.getCount();
                             }
                         } else {
-                            if (result == AOServDaemonProtocol.REMOTE_EXCEPTION) throw new RemoteException(rawIn.readUTF());
-                            else throw new RemoteException("Unknown result: " + result);
+                            if (result == AOServDaemonProtocol.IO_EXCEPTION) throw new IOException(rawIn.readUTF());
+                            else if (result == AOServDaemonProtocol.SQL_EXCEPTION) throw new SQLException(rawIn.readUTF());
+                            else throw new IOException("Unknown result: " + result);
                         }
                     } finally {
                         daemonConn.close(); // Always close to minimize connections on server and handle stop interruption causing interrupted protocol
@@ -945,7 +974,7 @@ final public class BackupDaemon {
                     for(int c=0;c<10;c++) {
                         // Try in a loop with delay in case master happens to be restarting
                         try {
-                            new AddFailoverFileLogCommand(ffr, new Timestamp(startTime), new Timestamp(System.currentTimeMillis()), scanned, updated, rawBytesOut+rawBytesIn, isSuccessful).execute(environment.getConnector());
+                            ffr.addFailoverFileLog(startTime, System.currentTimeMillis(), scanned, updated, rawBytesOut+rawBytesIn, isSuccessful);
                             break;
                         } catch(RuntimeException err) {
                             if(c>=10) {
