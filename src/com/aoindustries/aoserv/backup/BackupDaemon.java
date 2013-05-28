@@ -1,5 +1,5 @@
 /*
- * Copyright 2001-2012 by AO Industries, Inc.,
+ * Copyright 2001-2013 by AO Industries, Inc.,
  * 7262 Bull Pen Cir, Mobile, Alabama, 36695, U.S.A.
  * All rights reserved.
  */
@@ -12,6 +12,7 @@ import com.aoindustries.aoserv.client.FailoverFileLog;
 import com.aoindustries.aoserv.client.FailoverFileReplication;
 import com.aoindustries.aoserv.client.FailoverFileSchedule;
 import com.aoindustries.aoserv.client.Server;
+import com.aoindustries.aoserv.client.validator.InetAddress;
 import com.aoindustries.aoserv.daemon.client.AOServDaemonConnection;
 import com.aoindustries.aoserv.daemon.client.AOServDaemonConnector;
 import com.aoindustries.aoserv.daemon.client.AOServDaemonProtocol;
@@ -37,6 +38,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStreamWriter;
 import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.HashMap;
@@ -311,14 +313,14 @@ final public class BackupDaemon {
                     short retention = ffr.getRetention().getDays();
 
                     // Get the last start time and success flag from the database (will be cached locally unless an error occurs
-                    long lastStartTime = -1;
+                    Timestamp lastStartTime = null;
                     boolean lastPassSuccessful = false;
                     List<FailoverFileLog> ffls = ffr.getFailoverFileLogs(1);
                     if(!ffls.isEmpty()) {
                         FailoverFileLog lastLog = ffls.get(0);
                         if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "lastLog="+lastLog);
                         lastStartTime = lastLog.getStartTime();
-                        if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "lastStartTime="+SQLUtility.getDateTime(lastStartTime));
+                        if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "lastStartTime="+SQLUtility.getDateTime(lastStartTime==null ? -1 : lastStartTime.getTime()));
                         lastPassSuccessful = lastLog.isSuccessful();
                         if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "lastPassSuccessful="+lastPassSuccessful);
                     }
@@ -393,7 +395,7 @@ final public class BackupDaemon {
                                 if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "runNow causing immediate run of backup");
                             } else if(
                                 // Never ran before
-                                lastStartTime==-1
+                                lastStartTime==null
                             ) {
                                 shouldRun = true;
                                 if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "Never ran this mirror");
@@ -405,13 +407,13 @@ final public class BackupDaemon {
                                 if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "The last attempt at this mirror failed");
                             } else if(
                                 // Last pass in the future (time reset)
-                                lastStartTime > currentTime
+                                lastStartTime.getTime() > currentTime
                             ) {
                                 shouldRun = false;
                                 if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "Last pass in the future (time reset)");
                             } else if(
                                 // Last pass more than 24 hours ago (this handles replications without schedules)
-                                (currentTime - lastStartTime)>=(24*60*60*1000)
+                                (currentTime - lastStartTime.getTime())>=(24*60*60*1000)
                             ) {
                                 shouldRun = true;
                                 if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "Last pass more than 24 hours ago");
@@ -488,7 +490,7 @@ final public class BackupDaemon {
                                     if(currentThread!=thread) return;
                                 }
                                 try {
-                                    lastStartTime = currentTime;
+                                    lastStartTime = new Timestamp(currentTime);
                                     lastPassSuccessful = false;
                                     try {
                                         backupPass(newFFR);
@@ -600,7 +602,7 @@ final public class BackupDaemon {
                     AOServer.DaemonAccess daemonAccess = ffr.requestReplicationDaemonAccess();
 
                     // First, the specific source address from ffr is used
-                    String sourceIPAddress = ffr.getConnectFrom();
+                    InetAddress sourceIPAddress = ffr.getConnectFrom();
                     if(sourceIPAddress==null) {
                         sourceIPAddress = environment.getDefaultSourceIPAddress();
                     }

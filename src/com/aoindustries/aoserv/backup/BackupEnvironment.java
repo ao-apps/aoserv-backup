@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2012 by AO Industries, Inc.,
+ * Copyright 2003-2013 by AO Industries, Inc.,
  * 7262 Bull Pen Cir, Mobile, Alabama, 36695, U.S.A.
  * All rights reserved.
  */
@@ -8,6 +8,7 @@ package com.aoindustries.aoserv.backup;
 import com.aoindustries.aoserv.client.AOServConnector;
 import com.aoindustries.aoserv.client.FailoverFileReplication;
 import com.aoindustries.aoserv.client.Server;
+import com.aoindustries.aoserv.client.validator.InetAddress;
 import java.io.IOException;
 import java.io.InputStream;
 import java.sql.SQLException;
@@ -146,9 +147,9 @@ public interface BackupEnvironment {
     Iterator<String> getFilenameIterator(FailoverFileReplication ffr) throws IOException, SQLException;
 
     /**
-     * Gets the default source IP address or <code>IPAddress.WILDCARD_IP</code> to use the system default.
+     * Gets the default source IP address or <code>InetAddress.UNSPECIFIED</code> to use the system default.
      */
-    String getDefaultSourceIPAddress() throws IOException, SQLException;
+    InetAddress getDefaultSourceIPAddress() throws IOException, SQLException;
 
     /**
      * Gets the list of MySQL server instance names that are being replicated.
