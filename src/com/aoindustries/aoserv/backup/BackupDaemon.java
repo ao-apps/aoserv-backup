@@ -924,7 +924,7 @@ final public class BackupDaemon {
                                         }
                                     }
                                 } finally {
-                                    BufferManager.release(buff);
+                                    BufferManager.release(buff, false);
                                 }
 
                                 // Error now if not all required have been found
