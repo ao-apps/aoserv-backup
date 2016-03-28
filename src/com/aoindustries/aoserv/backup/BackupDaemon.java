@@ -871,7 +871,9 @@ final public class BackupDaemon {
 																}
 															}
 														} catch(IOException e) {
-															throw new IOException("filename="+ filename, e);
+															IOException ioExc = new IOException("filename="+ filename);
+															ioExc.initCause(e);
+															throw ioExc;
 														} finally {
 															fileIn.close();
 														}
