@@ -1,5 +1,5 @@
 /*
- * Copyright 2001-2013, 2015 by AO Industries, Inc.,
+ * Copyright 2001-2013, 2015, 2016 by AO Industries, Inc.,
  * 7262 Bull Pen Cir, Mobile, Alabama, 36695, U.S.A.
  * All rights reserved.
  */
@@ -870,6 +870,8 @@ final public class BackupDaemon {
 																	break;
 																}
 															}
+														} catch(IOException e) {
+															throw new IOException("filename="+ filename, e);
 														} finally {
 															fileIn.close();
 														}
