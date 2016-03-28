@@ -870,16 +870,16 @@ final public class BackupDaemon {
 																	break;
 																}
 															}
-														} catch(IOException e) {
-															IOException ioExc = new IOException("filename="+ filename);
-															ioExc.initCause(e);
-															throw ioExc;
 														} finally {
 															fileIn.close();
 														}
 													}
 												} catch(FileNotFoundException err) {
 													// Normal when the file was deleted
+												} catch(IOException e) {
+													IOException ioExc = new IOException("filename="+ filename);
+													ioExc.initCause(e);
+													throw ioExc;
 												} finally {
 													synchronized(this) {
 														if(currentThread != thread) return;
