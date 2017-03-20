@@ -640,7 +640,9 @@ final public class BackupDaemon {
 							Protocol.TCP
 						);
 					} catch(ValidationException e) {
-						throw new IOException(e);
+						IOException ioExc = new IOException(e.getLocalizedMessage());
+						ioExc.initCause(e);
+						throw ioExc;
 					}
 					AOServDaemonConnector daemonConnector = AOServDaemonConnector.getConnector(
 						daemonAccess.getHost(),
