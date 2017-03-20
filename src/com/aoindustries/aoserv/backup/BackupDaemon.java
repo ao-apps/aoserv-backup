@@ -12,6 +12,7 @@ import com.aoindustries.aoserv.client.FailoverFileLog;
 import com.aoindustries.aoserv.client.FailoverFileReplication;
 import com.aoindustries.aoserv.client.FailoverFileSchedule;
 import com.aoindustries.aoserv.client.Server;
+import com.aoindustries.aoserv.client.validator.MySQLServerName;
 import com.aoindustries.aoserv.daemon.client.AOServDaemonConnection;
 import com.aoindustries.aoserv.daemon.client.AOServDaemonConnector;
 import com.aoindustries.aoserv.daemon.client.AOServDaemonProtocol;
@@ -664,12 +665,12 @@ final public class BackupDaemon {
 						rawOut.writeShort(month);
 						rawOut.writeShort(day);
 						if(retention == 1) {
-							List<String> replicatedMySQLServers = environment.getReplicatedMySQLServers(ffr);
+							List<MySQLServerName> replicatedMySQLServers = environment.getReplicatedMySQLServers(ffr);
 							List<String> replicatedMySQLMinorVersions = environment.getReplicatedMySQLMinorVersions(ffr);
 							int len = replicatedMySQLServers.size();
 							rawOut.writeCompressedInt(len);
 							for(int c = 0; c < len; c++) {
-								rawOut.writeUTF(replicatedMySQLServers.get(c));
+								rawOut.writeUTF(replicatedMySQLServers.get(c).toString());
 								rawOut.writeUTF(replicatedMySQLMinorVersions.get(c));
 							}
 						}
@@ -1112,7 +1113,6 @@ final public class BackupDaemon {
 				ErrorPrinter.printStackTraces(err);
 				System.exit(5);
 			}
-			return;
 		} else {
 			// Load the environment class as provided on the command line
 			BackupEnvironment environment;
