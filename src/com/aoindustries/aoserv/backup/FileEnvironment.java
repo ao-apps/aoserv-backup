@@ -8,6 +8,7 @@ package com.aoindustries.aoserv.backup;
 import com.aoindustries.aoserv.client.AOServConnector;
 import com.aoindustries.aoserv.client.FailoverFileReplication;
 import com.aoindustries.aoserv.client.FileBackupSetting;
+import com.aoindustries.aoserv.client.validator.MySQLServerName;
 import com.aoindustries.io.FilesystemIterator;
 import com.aoindustries.io.FilesystemIteratorRule;
 import com.aoindustries.io.unix.UnixFile;
@@ -34,8 +35,8 @@ import java.util.Set;
 abstract public class FileEnvironment implements BackupEnvironment {
 
     private final Object fileCacheLock=new Object();
-    private Map<FailoverFileReplication,String> lastFilenames = new HashMap<FailoverFileReplication,String>();
-    private Map<FailoverFileReplication,File> lastFiles = new HashMap<FailoverFileReplication, File>();
+    private final Map<FailoverFileReplication,String> lastFilenames = new HashMap<FailoverFileReplication,String>();
+    private final Map<FailoverFileReplication,File> lastFiles = new HashMap<FailoverFileReplication, File>();
 
     protected File getFile(FailoverFileReplication ffr, String filename) {
         if(filename==null) throw new AssertionError("filename is null");
@@ -176,7 +177,7 @@ abstract public class FileEnvironment implements BackupEnvironment {
     }
 
     @Override
-    public List<String> getReplicatedMySQLServers(FailoverFileReplication ffr) throws IOException, SQLException {
+    public List<MySQLServerName> getReplicatedMySQLServers(FailoverFileReplication ffr) throws IOException, SQLException {
         return Collections.emptyList();
     }
 

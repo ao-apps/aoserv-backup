@@ -8,6 +8,7 @@ package com.aoindustries.aoserv.backup;
 import com.aoindustries.aoserv.client.AOServConnector;
 import com.aoindustries.aoserv.client.FailoverFileReplication;
 import com.aoindustries.aoserv.client.Server;
+import com.aoindustries.aoserv.client.validator.MySQLServerName;
 import com.aoindustries.net.InetAddress;
 import java.io.IOException;
 import java.io.InputStream;
@@ -158,7 +159,7 @@ public interface BackupEnvironment {
      * 
      * @see  #getReplicatedMySQLMinorVersions(FailoverFileReplication)
      */
-    List<String> getReplicatedMySQLServers(FailoverFileReplication ffr) throws IOException, SQLException;
+    List<MySQLServerName> getReplicatedMySQLServers(FailoverFileReplication ffr) throws IOException, SQLException;
 
     /**
      * Gets the list of MySQL server versions (in the same order as the list returned by <code>getReplicatedMySQLServers</code>.

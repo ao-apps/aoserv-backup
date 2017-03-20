@@ -28,10 +28,13 @@ import com.aoindustries.io.unix.UnixFile;
 import com.aoindustries.math.SafeMath;
 import com.aoindustries.md5.MD5;
 import com.aoindustries.net.InetAddress;
+import com.aoindustries.net.Port;
+import com.aoindustries.net.Protocol;
 import com.aoindustries.sql.SQLUtility;
 import com.aoindustries.table.Table;
 import com.aoindustries.table.TableListener;
 import com.aoindustries.util.ErrorPrinter;
+import com.aoindustries.validation.ValidationException;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -630,10 +633,19 @@ final public class BackupDaemon {
 						if(currentThread != thread) return;
 					}
 
+					Port port;
+					try {
+						port = Port.valueOf(
+							daemonAccess.getPort(),
+							Protocol.TCP
+						);
+					} catch(ValidationException e) {
+						throw new IOException(e);
+					}
 					AOServDaemonConnector daemonConnector = AOServDaemonConnector.getConnector(
 						daemonAccess.getHost(),
 						sourceIPAddress,
-						daemonAccess.getPort(),
+						port,
 						daemonAccess.getProtocol(),
 						null,
 						toServer.getPoolSize(),
