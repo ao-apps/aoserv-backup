@@ -632,22 +632,10 @@ final public class BackupDaemon {
 					synchronized(this) {
 						if(currentThread != thread) return;
 					}
-
-					Port port;
-					try {
-						port = Port.valueOf(
-							daemonAccess.getPort(),
-							Protocol.TCP
-						);
-					} catch(ValidationException e) {
-						IOException ioExc = new IOException(e.getLocalizedMessage());
-						ioExc.initCause(e);
-						throw ioExc;
-					}
 					AOServDaemonConnector daemonConnector = AOServDaemonConnector.getConnector(
 						daemonAccess.getHost(),
 						sourceIPAddress,
-						port,
+						daemonAccess.getPort(),
 						daemonAccess.getProtocol(),
 						null,
 						toServer.getPoolSize(),
