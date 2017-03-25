@@ -650,11 +650,10 @@ final public class BackupDaemon {
 							if(currentThread != thread) return;
 						}
 						// Start the replication
-						CompressedDataOutputStream rawOut = daemonConn.getOutputStream();
+						CompressedDataOutputStream rawOut = daemonConn.getOutputStream(AOServDaemonProtocol.FAILOVER_FILE_REPLICATION);
 
 						MD5 md5 = useCompression ? new MD5() : null;
 
-						rawOut.writeCompressedInt(AOServDaemonProtocol.FAILOVER_FILE_REPLICATION);
 						rawOut.writeLong(daemonAccess.getKey());
 						rawOut.writeBoolean(useCompression);
 						rawOut.writeShort(retention);
