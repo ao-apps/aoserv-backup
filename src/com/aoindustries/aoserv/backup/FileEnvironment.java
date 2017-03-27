@@ -173,7 +173,7 @@ abstract public class FileEnvironment implements BackupEnvironment {
 
     @Override
     public InetAddress getDefaultSourceIPAddress() throws IOException, SQLException {
-        return InetAddress.UNSPECIFIED;
+        return InetAddress.UNSPECIFIED_IPV4;
     }
 
     @Override
