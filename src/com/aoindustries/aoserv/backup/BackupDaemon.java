@@ -650,7 +650,7 @@ final public class BackupDaemon {
 							if(currentThread != thread) return;
 						}
 						// Start the replication
-						CompressedDataOutputStream rawOut = daemonConn.getOutputStream(AOServDaemonProtocol.FAILOVER_FILE_REPLICATION);
+						CompressedDataOutputStream rawOut = daemonConn.getRequestOut(AOServDaemonProtocol.FAILOVER_FILE_REPLICATION);
 
 						MD5 md5 = useCompression ? new MD5() : null;
 
@@ -680,7 +680,7 @@ final public class BackupDaemon {
 							if(currentThread != thread) return;
 						}
 
-						CompressedDataInputStream rawIn=daemonConn.getInputStream();
+						CompressedDataInputStream rawIn=daemonConn.getResponseIn();
 						int result=rawIn.read();
 						synchronized(this) {
 							if(currentThread != thread) return;
