@@ -1,5 +1,5 @@
 /*
- * Copyright 2001-2013, 2015, 2016, 2017 by AO Industries, Inc.,
+ * Copyright 2001-2013, 2015, 2016, 2017, 2018 by AO Industries, Inc.,
  * 7262 Bull Pen Cir, Mobile, Alabama, 36695, U.S.A.
  * All rights reserved.
  */
@@ -104,8 +104,6 @@ final public class BackupDaemon {
 									Thread.sleep(60000);
 								} catch(InterruptedException err2) {
 									environment.getLogger().logp(Level.WARNING, getClass().getName(), "run", null, err2);
-									// Restore the interrupted status
-									Thread.currentThread().interrupt();
 								}
 							} catch(IOException err) {
 								environment.getLogger().logp(Level.SEVERE, getClass().getName(), "run", null, err);
@@ -113,8 +111,6 @@ final public class BackupDaemon {
 									Thread.sleep(60000);
 								} catch(InterruptedException err2) {
 									environment.getLogger().logp(Level.WARNING, getClass().getName(), "run", null, err2);
-									// Restore the interrupted status
-									Thread.currentThread().interrupt();
 								}
 							} catch(SQLException err) {
 								environment.getLogger().logp(Level.SEVERE, getClass().getName(), "run", null, err);
@@ -122,8 +118,6 @@ final public class BackupDaemon {
 									Thread.sleep(60000);
 								} catch(InterruptedException err2) {
 									environment.getLogger().logp(Level.WARNING, getClass().getName(), "run", null, err2);
-									// Restore the interrupted status
-									Thread.currentThread().interrupt();
 								}
 							}
 						}
@@ -162,8 +156,6 @@ final public class BackupDaemon {
 					thread.join();
 				} catch(InterruptedException err) {
 					environment.getLogger().logp(Level.WARNING, getClass().getName(), "verifyThreads", null, err);
-					// Restore the interrupted status
-					Thread.currentThread().interrupt();
 				}
 			}
 		}
@@ -191,8 +183,6 @@ final public class BackupDaemon {
 					entry.getValue().join();
 				} catch(InterruptedException err) {
 					environment.getLogger().logp(Level.WARNING, getClass().getName(), "stop", null, err);
-					// Restore the interrupted status
-					Thread.currentThread().interrupt();
 				}
 			}
 			threads.clear();
@@ -357,8 +347,6 @@ final public class BackupDaemon {
 								if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "Sleeping for "+sleepyTime+" milliseconds before checking if backup pass needed.");
 								Thread.sleep(sleepyTime);
 							} catch(InterruptedException err) {
-								// Restore the interrupted status
-								Thread.currentThread().interrupt();
 								// May be interrupted by stop call
 							}
 						}
@@ -524,8 +512,6 @@ final public class BackupDaemon {
 									try {
 										Thread.sleep(sleepyTime); 
 									} catch(InterruptedException err) {
-										// Restore the interrupted status
-										Thread.currentThread().interrupt();
 										// May be interrupted by stop call
 									}
 								} catch(IOException T) {
@@ -539,8 +525,6 @@ final public class BackupDaemon {
 									try {
 										Thread.sleep(sleepyTime); 
 									} catch(InterruptedException err) {
-										// Restore the interrupted status
-										Thread.currentThread().interrupt();
 										// May be interrupted by stop call
 									}
 								} catch(SQLException T) {
@@ -554,8 +538,6 @@ final public class BackupDaemon {
 									try {
 										Thread.sleep(sleepyTime); 
 									} catch(InterruptedException err) {
-										// Restore the interrupted status
-										Thread.currentThread().interrupt();
 										// May be interrupted by stop call
 									}
 								}
@@ -575,8 +557,6 @@ final public class BackupDaemon {
 					try {
 						Thread.sleep(sleepyTime);
 					} catch(InterruptedException err) {
-						// Restore the interrupted status
-						Thread.currentThread().interrupt();
 						// May be interrupted by stop call
 					}
 				}
@@ -1083,8 +1063,6 @@ final public class BackupDaemon {
 									Thread.sleep(60*1000);
 								} catch(InterruptedException err2) {
 									environment.getLogger().logp(Level.WARNING, getClass().getName(), "backupPass", null, err2);
-									// Restore the interrupted status
-									Thread.currentThread().interrupt();
 								}
 							}
 						}
@@ -1149,8 +1127,6 @@ final public class BackupDaemon {
 						Thread.sleep(60000);
 					} catch(InterruptedException err) {
 						logger.logp(Level.WARNING, BackupDaemon.class.getName(), "main", null, err);
-						// Restore the interrupted status
-						Thread.currentThread().interrupt();
 					}
 				}
 			}
