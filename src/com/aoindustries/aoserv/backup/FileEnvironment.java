@@ -6,8 +6,8 @@
 package com.aoindustries.aoserv.backup;
 
 import com.aoindustries.aoserv.client.AOServConnector;
-import com.aoindustries.aoserv.client.backup.FailoverFileReplication;
-import com.aoindustries.aoserv.client.backup.FileBackupSetting;
+import com.aoindustries.aoserv.client.backup.FileReplication;
+import com.aoindustries.aoserv.client.backup.FileReplicationSetting;
 import com.aoindustries.aoserv.client.validator.MySQLServerName;
 import com.aoindustries.io.FilesystemIterator;
 import com.aoindustries.io.FilesystemIteratorRule;
@@ -35,10 +35,10 @@ import java.util.Set;
 abstract public class FileEnvironment implements BackupEnvironment {
 
 	private final Object fileCacheLock=new Object();
-	private final Map<FailoverFileReplication,String> lastFilenames = new HashMap<FailoverFileReplication,String>();
-	private final Map<FailoverFileReplication,File> lastFiles = new HashMap<FailoverFileReplication, File>();
+	private final Map<FileReplication,String> lastFilenames = new HashMap<FileReplication,String>();
+	private final Map<FileReplication,File> lastFiles = new HashMap<FileReplication, File>();
 
-	protected File getFile(FailoverFileReplication ffr, String filename) {
+	protected File getFile(FileReplication ffr, String filename) {
 		if(filename==null) throw new AssertionError("filename is null");
 		synchronized(fileCacheLock) {
 			File lastFile;
@@ -54,7 +54,7 @@ abstract public class FileEnvironment implements BackupEnvironment {
 	}
 
 	@Override
-	public long getStatMode(FailoverFileReplication ffr, String filename) throws IOException {
+	public long getStatMode(FileReplication ffr, String filename) throws IOException {
 		File file=getFile(ffr, filename);
 		if(file.isDirectory()) return UnixFile.IS_DIRECTORY|0750;
 		if(file.isFile()) return UnixFile.IS_REGULAR_FILE|0640;
@@ -62,65 +62,65 @@ abstract public class FileEnvironment implements BackupEnvironment {
 	}
 
 	@Override
-	public String[] getDirectoryList(FailoverFileReplication ffr, String filename) throws IOException {
+	public String[] getDirectoryList(FileReplication ffr, String filename) throws IOException {
 		return getFile(ffr, filename).list();
 	}
 
 	@Override
-	public int getUid(FailoverFileReplication ffr, String filename) throws IOException {
+	public int getUid(FileReplication ffr, String filename) throws IOException {
 		return UnixFile.ROOT_UID;
 	}
 
 	@Override
-	public int getGid(FailoverFileReplication ffr, String filename) throws IOException {
+	public int getGid(FileReplication ffr, String filename) throws IOException {
 		return UnixFile.ROOT_GID;
 	}
 
 	@Override
-	public long getModifyTime(FailoverFileReplication ffr, String filename) throws IOException {
+	public long getModifyTime(FileReplication ffr, String filename) throws IOException {
 		return getFile(ffr, filename).lastModified();
 	}
 
 	@Override
-	public long getLength(FailoverFileReplication ffr, String filename) throws IOException {
+	public long getLength(FileReplication ffr, String filename) throws IOException {
 		return getFile(ffr, filename).length();
 	}
 
 	@Override
-	public String readLink(FailoverFileReplication ffr, String filename) throws IOException {
+	public String readLink(FileReplication ffr, String filename) throws IOException {
 		throw new IOException("readLink not supported");
 	}
 
 	@Override
-	public long getDeviceIdentifier(FailoverFileReplication ffr, String filename) throws IOException {
+	public long getDeviceIdentifier(FileReplication ffr, String filename) throws IOException {
 		throw new IOException("getDeviceIdentifier not supported");
 	}
 
 	@Override
-	public InputStream getInputStream(FailoverFileReplication ffr, String filename) throws IOException {
+	public InputStream getInputStream(FileReplication ffr, String filename) throws IOException {
 		return new FileInputStream(getFile(ffr, filename));
 	}
 
 	@Override
-	public String getNameOfFile(FailoverFileReplication ffr, String filename) {
+	public String getNameOfFile(FileReplication ffr, String filename) {
 		return getFile(ffr, filename).getName();
 	}
 
 	@Override
-	public int getFailoverBatchSize(FailoverFileReplication ffr) throws IOException, SQLException {
+	public int getFailoverBatchSize(FileReplication ffr) throws IOException, SQLException {
 		return 1000;
 	}
 
 	@Override
-	public void preBackup(FailoverFileReplication ffr) throws IOException, SQLException {
+	public void preBackup(FileReplication ffr) throws IOException, SQLException {
 	}
 
 	@Override
-	public void init(FailoverFileReplication ffr) throws IOException, SQLException {
+	public void init(FileReplication ffr) throws IOException, SQLException {
 	}
 
 	@Override
-	public void cleanup(FailoverFileReplication ffr) throws IOException, SQLException {
+	public void cleanup(FileReplication ffr) throws IOException, SQLException {
 		synchronized(fileCacheLock) {
 			lastFilenames.remove(ffr);
 			lastFiles.remove(ffr);
@@ -128,13 +128,13 @@ abstract public class FileEnvironment implements BackupEnvironment {
 	}
 
 	@Override
-	public void postBackup(FailoverFileReplication ffr) throws IOException, SQLException {
+	public void postBackup(FileReplication ffr) throws IOException, SQLException {
 	}
 
 	@Override
-	public Set<String> getRequiredFilenames(FailoverFileReplication ffr) throws IOException, SQLException {
+	public Set<String> getRequiredFilenames(FileReplication ffr) throws IOException, SQLException {
 		Set<String> requiredFilenames = new LinkedHashSet<String>();
-		for(FileBackupSetting setting : ffr.getFileBackupSettings()) {
+		for(FileReplicationSetting setting : ffr.getFileBackupSettings()) {
 			String path = setting.getPath();
 			if(path.length()>1 && path.endsWith(File.separator)) path = path.substring(0, path.length()-1);
 			if(setting.isRequired()) requiredFilenames.add(path);
@@ -143,12 +143,12 @@ abstract public class FileEnvironment implements BackupEnvironment {
 	}
 
 	@Override
-	public Iterator<String> getFilenameIterator(FailoverFileReplication ffr) throws IOException, SQLException {
+	public Iterator<String> getFilenameIterator(FileReplication ffr) throws IOException, SQLException {
 		// Build the skip list
 		Map<String,FilesystemIteratorRule> filesystemRules = getFilesystemIteratorRules(ffr);
 		Map<String,FilesystemIteratorRule> filesystemPrefixRules = getFilesystemIteratorPrefixRules(ffr);
 
-		for(FileBackupSetting setting : ffr.getFileBackupSettings()) {
+		for(FileReplicationSetting setting : ffr.getFileBackupSettings()) {
 			filesystemRules.put(
 				setting.getPath(),
 				setting.getBackupEnabled() ? FilesystemIteratorRule.OK : FilesystemIteratorRule.SKIP
@@ -164,12 +164,12 @@ abstract public class FileEnvironment implements BackupEnvironment {
 	 * values returned here.  The returned map may be modified, to maintain
 	 * internal consistency, return a copy of the map if needed.
 	 */
-	protected abstract Map<String,FilesystemIteratorRule> getFilesystemIteratorRules(FailoverFileReplication ffr) throws IOException, SQLException;
+	protected abstract Map<String,FilesystemIteratorRule> getFilesystemIteratorRules(FileReplication ffr) throws IOException, SQLException;
 
 	/**
 	 * Gets the default set of filesystem prefix rules for this environment.
 	 */
-	protected abstract Map<String,FilesystemIteratorRule> getFilesystemIteratorPrefixRules(FailoverFileReplication ffr) throws IOException, SQLException;
+	protected abstract Map<String,FilesystemIteratorRule> getFilesystemIteratorPrefixRules(FileReplication ffr) throws IOException, SQLException;
 
 	@Override
 	public InetAddress getDefaultSourceIPAddress() throws IOException, SQLException {
@@ -177,12 +177,12 @@ abstract public class FileEnvironment implements BackupEnvironment {
 	}
 
 	@Override
-	public List<MySQLServerName> getReplicatedMySQLServers(FailoverFileReplication ffr) throws IOException, SQLException {
+	public List<MySQLServerName> getReplicatedMySQLServers(FileReplication ffr) throws IOException, SQLException {
 		return Collections.emptyList();
 	}
 
 	@Override
-	public List<String> getReplicatedMySQLMinorVersions(FailoverFileReplication ffr) throws IOException, SQLException {
+	public List<String> getReplicatedMySQLMinorVersions(FileReplication ffr) throws IOException, SQLException {
 		return Collections.emptyList();
 	}
 
@@ -195,7 +195,7 @@ abstract public class FileEnvironment implements BackupEnvironment {
 	}
 
 	@Override
-	public String getServerPath(FailoverFileReplication ffr, String filename) {
+	public String getServerPath(FileReplication ffr, String filename) {
 		String serverPath;
 		if(filename.length()==0) throw new AssertionError("Empty filename not expected");
 		else if(filename.charAt(0)!=File.separatorChar) serverPath = '/' + filename.replace(File.separatorChar, '/');

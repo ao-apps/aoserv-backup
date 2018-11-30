@@ -7,11 +7,11 @@ package com.aoindustries.aoserv.backup;
 
 import com.aoindustries.aoserv.client.AOServClientConfiguration;
 import com.aoindustries.aoserv.client.AOServConnector;
-import com.aoindustries.aoserv.client.backup.FailoverFileLog;
-import com.aoindustries.aoserv.client.backup.FailoverFileReplication;
-import com.aoindustries.aoserv.client.backup.FailoverFileSchedule;
-import com.aoindustries.aoserv.client.linux.AOServer;
-import com.aoindustries.aoserv.client.net.Server;
+import com.aoindustries.aoserv.client.backup.FileReplication;
+import com.aoindustries.aoserv.client.backup.FileReplicationLog;
+import com.aoindustries.aoserv.client.backup.FileReplicationSchedule;
+import com.aoindustries.aoserv.client.linux.Server;
+import com.aoindustries.aoserv.client.net.Host;
 import com.aoindustries.aoserv.client.validator.MySQLServerName;
 import com.aoindustries.aoserv.daemon.client.AOServDaemonConnection;
 import com.aoindustries.aoserv.daemon.client.AOServDaemonConnector;
@@ -28,13 +28,10 @@ import com.aoindustries.io.unix.UnixFile;
 import com.aoindustries.math.SafeMath;
 import com.aoindustries.md5.MD5;
 import com.aoindustries.net.InetAddress;
-import com.aoindustries.net.Port;
-import com.aoindustries.net.Protocol;
 import com.aoindustries.sql.SQLUtility;
 import com.aoindustries.table.Table;
 import com.aoindustries.table.TableListener;
 import com.aoindustries.util.ErrorPrinter;
-import com.aoindustries.validation.ValidationException;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -64,7 +61,7 @@ final public class BackupDaemon {
 	final private BackupEnvironment environment;
 
 	private boolean isStarted = false;
-	final private Map<FailoverFileReplication,BackupDaemonThread> threads = new HashMap<FailoverFileReplication,BackupDaemonThread>();
+	final private Map<FileReplication,BackupDaemonThread> threads = new HashMap<FileReplication,BackupDaemonThread>();
 
 	public BackupDaemon(BackupEnvironment environment) {
 		this.environment=environment;
@@ -84,7 +81,7 @@ final public class BackupDaemon {
 	};
 
 	/**
-	 * Starts the backup daemon (as one thread per FailoverFileReplication.
+	 * Starts the backup daemon (as one thread per FileReplication.
 	 */
 	synchronized public void start() throws IOException, SQLException {
 		if(!isStarted) {
@@ -130,12 +127,12 @@ final public class BackupDaemon {
 	synchronized private void verifyThreads() throws IOException, SQLException {
 		// Ignore events coming in after shutdown
 		if(isStarted) {
-			Server thisServer = environment.getThisServer();
+			Host thisServer = environment.getThisServer();
 			Logger logger = environment.getLogger();
 			boolean isDebug = logger.isLoggable(Level.FINE);
 			//AOServConnector conn = environment.getConnector();
-			List<FailoverFileReplication> removedList = new ArrayList<FailoverFileReplication>(threads.keySet());
-			for(FailoverFileReplication ffr : thisServer.getFailoverFileReplications()) {
+			List<FileReplication> removedList = new ArrayList<FileReplication>(threads.keySet());
+			for(FileReplication ffr : thisServer.getFailoverFileReplications()) {
 				removedList.remove(ffr);
 				if(!threads.containsKey(ffr)) {
 					if(isDebug) logger.logp(Level.FINE, getClass().getName(), "verifyThreads", "Starting BackupDaemonThread for "+ffr);
@@ -144,12 +141,12 @@ final public class BackupDaemon {
 					thread.start();
 				}
 			}
-			for(FailoverFileReplication ffr : removedList) {
+			for(FileReplication ffr : removedList) {
 				BackupDaemonThread thread = threads.get(ffr);
 				if(isDebug) logger.logp(Level.FINE, getClass().getName(), "verifyThreads", "Stopping BackupDaemonThread for "+ffr);
 				thread.stop();
 			}
-			for(FailoverFileReplication ffr : removedList) {
+			for(FileReplication ffr : removedList) {
 				BackupDaemonThread thread = threads.remove(ffr);
 				if(isDebug) logger.logp(Level.FINE, getClass().getName(), "verifyThreads", "Joining BackupDaemonThread for "+ffr);
 				try {
@@ -172,12 +169,12 @@ final public class BackupDaemon {
 			Logger logger = environment.getLogger();
 			boolean isDebug = logger.isLoggable(Level.FINE);
 			// Stop each thread
-			for(Map.Entry<FailoverFileReplication,BackupDaemonThread> entry : threads.entrySet()) {
+			for(Map.Entry<FileReplication,BackupDaemonThread> entry : threads.entrySet()) {
 				if(isDebug) logger.logp(Level.FINE, getClass().getName(), "stop", "Stopping BackupDaemonThread for "+entry.getKey());
 				entry.getValue().stop();
 			}
 			// Join each thread (wait for actual stop)
-			for(Map.Entry<FailoverFileReplication,BackupDaemonThread> entry : threads.entrySet()) {
+			for(Map.Entry<FileReplication,BackupDaemonThread> entry : threads.entrySet()) {
 				if(isDebug) logger.logp(Level.FINE, getClass().getName(), "stop", "Joining BackupDaemonThread for "+entry.getKey());
 				try {
 					entry.getValue().join();
@@ -189,7 +186,7 @@ final public class BackupDaemon {
 		}
 	}
 
-	synchronized public void runNow(FailoverFileReplication ffr) {
+	synchronized public void runNow(FileReplication ffr) {
 		BackupDaemonThread thread = threads.get(ffr);
 		if(thread!=null) thread.runNow();
 	}
@@ -197,9 +194,9 @@ final public class BackupDaemon {
 	private static class DynamicBitRateProvider implements BitRateProvider {
 
 		final private BackupEnvironment environment;
-		final private FailoverFileReplication originalFfr;
+		final private FileReplication originalFfr;
 
-		private DynamicBitRateProvider(BackupEnvironment environment, FailoverFileReplication ffr) {
+		private DynamicBitRateProvider(BackupEnvironment environment, FileReplication ffr) {
 			this.environment = environment;
 			this.originalFfr = ffr;
 		}
@@ -208,7 +205,7 @@ final public class BackupDaemon {
 		public Long getBitRate() {
 			try {
 				// Try to get the latest version of originalFfr
-				FailoverFileReplication newFfr = originalFfr.getTable().get(originalFfr.getKey());
+				FileReplication newFfr = originalFfr.getTable().get(originalFfr.getKey());
 				if(newFfr!=null) return newFfr.getBitRate();
 			} catch(IOException err) {
 				environment.getLogger().logp(Level.SEVERE, DynamicBitRateProvider.class.getName(), "getBitRate", null, err);
@@ -256,12 +253,12 @@ final public class BackupDaemon {
 		}
 
 		private final BackupEnvironment environment;
-		private final FailoverFileReplication ffr;
+		private final FileReplication ffr;
 		volatile private boolean runNow;
 		private Thread thread;
 		private Thread lastThread;
 
-		private BackupDaemonThread(BackupEnvironment environment, FailoverFileReplication ffr) {
+		private BackupDaemonThread(BackupEnvironment environment, FileReplication ffr) {
 			this.environment = environment;
 			this.ffr = ffr;
 		}
@@ -318,9 +315,9 @@ final public class BackupDaemon {
 					// Get the last start time and success flag from the database (will be cached locally unless an error occurs
 					Timestamp lastStartTime = null;
 					boolean lastPassSuccessful = false;
-					List<FailoverFileLog> ffls = ffr.getFailoverFileLogs(1);
+					List<FileReplicationLog> ffls = ffr.getFailoverFileLogs(1);
 					if(!ffls.isEmpty()) {
-						FailoverFileLog lastLog = ffls.get(0);
+						FileReplicationLog lastLog = ffls.get(0);
 						if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "lastLog="+lastLog);
 						lastStartTime = lastLog.getStartTime();
 						if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "lastStartTime="+SQLUtility.getDateTime(lastStartTime==null ? -1 : lastStartTime.getTime()));
@@ -355,7 +352,7 @@ final public class BackupDaemon {
 						}
 
 						// Get the latest ffr object (if cache was invalidated) to adhere to changes in enabled flag
-						FailoverFileReplication newFFR = environment.getConnector().getFailoverFileReplications().get(ffr.getPkey());
+						FileReplication newFFR = environment.getConnector().getFailoverFileReplications().get(ffr.getPkey());
 						synchronized(this) {
 							if(currentThread != thread) return;
 						}
@@ -373,12 +370,12 @@ final public class BackupDaemon {
 							int currentMinute = cal.get(Calendar.MINUTE);
 
 							if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "newFFR="+newFFR);
-							Server thisServer=environment.getThisServer();
+							Host thisServer=environment.getThisServer();
 							if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "thisServer="+thisServer);
-							AOServer thisAOServer = thisServer.getAOServer();
-							AOServer failoverServer = thisAOServer==null ? null : thisAOServer.getFailoverServer();
+							Server thisAOServer = thisServer.getAOServer();
+							Server failoverServer = thisAOServer==null ? null : thisAOServer.getFailoverServer();
 							if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "failoverServer="+failoverServer);
-							AOServer toServer=newFFR.getBackupPartition().getAOServer();
+							Server toServer=newFFR.getBackupPartition().getAOServer();
 							if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "toServer="+toServer);
 							synchronized(this) {
 								if(currentThread != thread) return;
@@ -428,12 +425,12 @@ final public class BackupDaemon {
 								if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "Last check time in the future (time reset)");
 							} else {
 								// If there is currently no schedule, this will not flag shouldRun and the check for 24-hours passed (above) will force the backup
-								List<FailoverFileSchedule> schedules = newFFR.getFailoverFileSchedules();
+								List<FileReplicationSchedule> schedules = newFFR.getFailoverFileSchedules();
 								synchronized(this) {
 									if(currentThread != thread) return;
 								}
 								shouldRun = false;
-								for(FailoverFileSchedule schedule : schedules) {
+								for(FileReplicationSchedule schedule : schedules) {
 									if(schedule.isEnabled()) {
 										int scheduleHour = schedule.getHour();
 										int scheduleMinute = schedule.getMinute();
@@ -471,7 +468,7 @@ final public class BackupDaemon {
 										// Current minute already checked above, terminate loop
 										if(lastCheckHour==currentHour && lastCheckMinute==currentMinute) break CHECK_LOOP;
 										// Look for a missed schedule
-										for(FailoverFileSchedule schedule : schedules) {
+										for(FileReplicationSchedule schedule : schedules) {
 											if(schedule.isEnabled()) {
 												int scheduleHour = schedule.getHour();
 												int scheduleMinute = schedule.getMinute();
@@ -563,7 +560,7 @@ final public class BackupDaemon {
 			}
 		}
 
-		private void backupPass(FailoverFileReplication ffr) throws IOException, SQLException {
+		private void backupPass(FileReplication ffr) throws IOException, SQLException {
 			final Thread currentThread = Thread.currentThread();
 
 			environment.preBackup(ffr);
@@ -577,9 +574,9 @@ final public class BackupDaemon {
 				synchronized(this) {
 					if(currentThread != thread) return;
 				}
-				final Server thisServer = environment.getThisServer();
+				final Host thisServer = environment.getThisServer();
 				final int failoverBatchSize = environment.getFailoverBatchSize(ffr);
-				final AOServer toServer=ffr.getBackupPartition().getAOServer();
+				final Server toServer=ffr.getBackupPartition().getAOServer();
 				final boolean useCompression = ffr.getUseCompression();
 				final short retention = ffr.getRetention().getDays();
 				synchronized(this) {
@@ -602,7 +599,7 @@ final public class BackupDaemon {
 				boolean isSuccessful = false;
 				try {
 					// Get the connection to the daemon
-					AOServer.DaemonAccess daemonAccess = ffr.requestReplicationDaemonAccess();
+					Server.DaemonAccess daemonAccess = ffr.requestReplicationDaemonAccess();
 
 					// First, the specific source address from ffr is used
 					InetAddress sourceIPAddress = ffr.getConnectFrom();
