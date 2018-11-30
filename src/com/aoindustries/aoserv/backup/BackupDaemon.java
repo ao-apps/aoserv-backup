@@ -7,11 +7,11 @@ package com.aoindustries.aoserv.backup;
 
 import com.aoindustries.aoserv.client.AOServClientConfiguration;
 import com.aoindustries.aoserv.client.AOServConnector;
-import com.aoindustries.aoserv.client.AOServer;
-import com.aoindustries.aoserv.client.FailoverFileLog;
-import com.aoindustries.aoserv.client.FailoverFileReplication;
-import com.aoindustries.aoserv.client.FailoverFileSchedule;
-import com.aoindustries.aoserv.client.Server;
+import com.aoindustries.aoserv.client.backup.FailoverFileLog;
+import com.aoindustries.aoserv.client.backup.FailoverFileReplication;
+import com.aoindustries.aoserv.client.backup.FailoverFileSchedule;
+import com.aoindustries.aoserv.client.linux.AOServer;
+import com.aoindustries.aoserv.client.net.Server;
 import com.aoindustries.aoserv.client.validator.MySQLServerName;
 import com.aoindustries.aoserv.daemon.client.AOServDaemonConnection;
 import com.aoindustries.aoserv.daemon.client.AOServDaemonConnector;

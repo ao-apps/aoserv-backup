@@ -1,7 +1,7 @@
 package com.aoindustries.aoserv.backup;
 
 /*
- * Copyright 2003-2009 by AO Industries, Inc.,
+ * Copyright 2003-2009, 2018 by AO Industries, Inc.,
  * 7262 Bull Pen Cir, Mobile, Alabama, 36695, U.S.A.
  * All rights reserved.
  */
@@ -15,31 +15,31 @@ package com.aoindustries.aoserv.backup;
  */
 public class BackupFileSetting {
 
-    private String filename;
-    private boolean backupEnabled;
+	private String filename;
+	private boolean backupEnabled;
 
-    public void clear() {
-        filename=null;
-        backupEnabled=false;
-    }
-    
-    public String getFilename() {
-        return filename;
-    }
+	public void clear() {
+		filename=null;
+		backupEnabled=false;
+	}
 
-    public boolean getBackupEnabled() {
-        return backupEnabled;
-    }
+	public String getFilename() {
+		return filename;
+	}
 
-    public void setSettings(
-        boolean backupEnabled
-    ) {
-        this.backupEnabled=backupEnabled;
-    }
+	public boolean getBackupEnabled() {
+		return backupEnabled;
+	}
 
-    public void setFilename(
-        String filename
-    ) {
-        this.filename=filename;
-    }
+	public void setSettings(
+		boolean backupEnabled
+	) {
+		this.backupEnabled=backupEnabled;
+	}
+
+	public void setFilename(
+		String filename
+	) {
+		this.filename=filename;
+	}
 }
