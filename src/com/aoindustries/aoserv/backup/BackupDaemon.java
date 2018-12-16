@@ -86,7 +86,7 @@ final public class BackupDaemon {
 	synchronized public void start() throws IOException, SQLException {
 		if(!isStarted) {
 			AOServConnector conn = environment.getConnector();
-			conn.getBackup().getFailoverFileReplications().addTableListener(tableListener);
+			conn.getBackup().getFileReplication().addTableListener(tableListener);
 			isStarted = true;
 			new Thread(
 				new Runnable() {
@@ -164,7 +164,7 @@ final public class BackupDaemon {
 	synchronized public void stop() throws IOException, SQLException {
 		if(isStarted) {
 			AOServConnector conn = environment.getConnector();
-			conn.getBackup().getFailoverFileReplications().removeTableListener(tableListener);
+			conn.getBackup().getFileReplication().removeTableListener(tableListener);
 			isStarted = false;
 			Logger logger = environment.getLogger();
 			boolean isDebug = logger.isLoggable(Level.FINE);
@@ -352,7 +352,7 @@ final public class BackupDaemon {
 						}
 
 						// Get the latest ffr object (if cache was invalidated) to adhere to changes in enabled flag
-						FileReplication newFFR = environment.getConnector().getBackup().getFailoverFileReplications().get(ffr.getPkey());
+						FileReplication newFFR = environment.getConnector().getBackup().getFileReplication().get(ffr.getPkey());
 						synchronized(this) {
 							if(currentThread != thread) return;
 						}
