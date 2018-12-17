@@ -8,7 +8,7 @@ package com.aoindustries.aoserv.backup;
 import com.aoindustries.aoserv.client.AOServConnector;
 import com.aoindustries.aoserv.client.backup.FileReplication;
 import com.aoindustries.aoserv.client.backup.FileReplicationSetting;
-import com.aoindustries.aoserv.client.validator.MySQLServerName;
+import com.aoindustries.aoserv.client.mysql.Server;
 import com.aoindustries.io.FilesystemIterator;
 import com.aoindustries.io.FilesystemIteratorRule;
 import com.aoindustries.io.unix.UnixFile;
@@ -177,7 +177,7 @@ abstract public class FileEnvironment implements BackupEnvironment {
 	}
 
 	@Override
-	public List<MySQLServerName> getReplicatedMySQLServers(FileReplication ffr) throws IOException, SQLException {
+	public List<Server.Name> getReplicatedMySQLServers(FileReplication ffr) throws IOException, SQLException {
 		return Collections.emptyList();
 	}
 

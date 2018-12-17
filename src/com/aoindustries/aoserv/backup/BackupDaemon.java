@@ -12,7 +12,6 @@ import com.aoindustries.aoserv.client.backup.FileReplicationLog;
 import com.aoindustries.aoserv.client.backup.FileReplicationSchedule;
 import com.aoindustries.aoserv.client.linux.Server;
 import com.aoindustries.aoserv.client.net.Host;
-import com.aoindustries.aoserv.client.validator.MySQLServerName;
 import com.aoindustries.aoserv.daemon.client.AOServDaemonConnection;
 import com.aoindustries.aoserv.daemon.client.AOServDaemonConnector;
 import com.aoindustries.aoserv.daemon.client.AOServDaemonProtocol;
@@ -643,7 +642,7 @@ final public class BackupDaemon {
 						rawOut.writeShort(month);
 						rawOut.writeShort(day);
 						if(retention == 1) {
-							List<MySQLServerName> replicatedMySQLServers = environment.getReplicatedMySQLServers(ffr);
+							List<com.aoindustries.aoserv.client.mysql.Server.Name> replicatedMySQLServers = environment.getReplicatedMySQLServers(ffr);
 							List<String> replicatedMySQLMinorVersions = environment.getReplicatedMySQLMinorVersions(ffr);
 							int len = replicatedMySQLServers.size();
 							rawOut.writeCompressedInt(len);
