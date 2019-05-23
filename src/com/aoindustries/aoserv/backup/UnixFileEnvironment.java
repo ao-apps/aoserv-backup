@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2009, 2018 by AO Industries, Inc.,
+ * Copyright 2003-2009, 2018, 2019 by AO Industries, Inc.,
  * 7262 Bull Pen Cir, Mobile, Alabama, 36695, U.S.A.
  * All rights reserved.
  */
@@ -25,9 +25,9 @@ import java.util.Map;
 abstract public class UnixFileEnvironment extends FileEnvironment {
 
 	private final Object unixFileCacheLock=new Object();
-	private Map<FileReplication,File> lastFiles = new HashMap<FileReplication,File>();
-	private Map<FileReplication,UnixFile> lastUnixFiles = new HashMap<FileReplication,UnixFile>();
-	private Map<FileReplication,Stat> lastStats = new HashMap<FileReplication,Stat>();
+	private final Map<FileReplication,File> lastFiles = new HashMap<>();
+	private final Map<FileReplication,UnixFile> lastUnixFiles = new HashMap<>();
+	private final Map<FileReplication,Stat> lastStats = new HashMap<>();
 
 	protected UnixFile getUnixFile(FileReplication ffr, String filename) throws IOException {
 		File file = getFile(ffr, filename);

@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2013, 2017, 2018 by AO Industries, Inc.,
+ * Copyright 2003-2013, 2017, 2018, 2019 by AO Industries, Inc.,
  * 7262 Bull Pen Cir, Mobile, Alabama, 36695, U.S.A.
  * All rights reserved.
  */
@@ -35,8 +35,8 @@ import java.util.Set;
 abstract public class FileEnvironment implements BackupEnvironment {
 
 	private final Object fileCacheLock=new Object();
-	private final Map<FileReplication,String> lastFilenames = new HashMap<FileReplication,String>();
-	private final Map<FileReplication,File> lastFiles = new HashMap<FileReplication, File>();
+	private final Map<FileReplication,String> lastFilenames = new HashMap<>();
+	private final Map<FileReplication,File> lastFiles = new HashMap<>();
 
 	protected File getFile(FileReplication ffr, String filename) {
 		if(filename==null) throw new AssertionError("filename is null");
@@ -133,7 +133,7 @@ abstract public class FileEnvironment implements BackupEnvironment {
 
 	@Override
 	public Set<String> getRequiredFilenames(FileReplication ffr) throws IOException, SQLException {
-		Set<String> requiredFilenames = new LinkedHashSet<String>();
+		Set<String> requiredFilenames = new LinkedHashSet<>();
 		for(FileReplicationSetting setting : ffr.getFileBackupSettings()) {
 			String path = setting.getPath();
 			if(path.length()>1 && path.endsWith(File.separator)) path = path.substring(0, path.length()-1);

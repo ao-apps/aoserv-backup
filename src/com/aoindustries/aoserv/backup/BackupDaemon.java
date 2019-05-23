@@ -60,7 +60,7 @@ final public class BackupDaemon {
 	final private BackupEnvironment environment;
 
 	private boolean isStarted = false;
-	final private Map<FileReplication,BackupDaemonThread> threads = new HashMap<FileReplication,BackupDaemonThread>();
+	final private Map<FileReplication,BackupDaemonThread> threads = new HashMap<>();
 
 	public BackupDaemon(BackupEnvironment environment) {
 		this.environment=environment;
@@ -71,9 +71,7 @@ final public class BackupDaemon {
 		public void tableUpdated(Table<?> table) {
 			try {
 				verifyThreads();
-			} catch(IOException err) {
-				environment.getLogger().logp(Level.SEVERE, getClass().getName(), "tableUpdated", null, err);
-			} catch(SQLException err) {
+			} catch(IOException | SQLException err) {
 				environment.getLogger().logp(Level.SEVERE, getClass().getName(), "tableUpdated", null, err);
 			}
 		}
@@ -89,26 +87,13 @@ final public class BackupDaemon {
 			isStarted = true;
 			new Thread(
 				new Runnable() {
+					@Override
 					public void run() {
 						while(true) {
 							try {
 								verifyThreads();
 								break;
-							} catch(RuntimeException err) {
-								environment.getLogger().logp(Level.SEVERE, getClass().getName(), "run", null, err);
-								try {
-									Thread.sleep(60000);
-								} catch(InterruptedException err2) {
-									environment.getLogger().logp(Level.WARNING, getClass().getName(), "run", null, err2);
-								}
-							} catch(IOException err) {
-								environment.getLogger().logp(Level.SEVERE, getClass().getName(), "run", null, err);
-								try {
-									Thread.sleep(60000);
-								} catch(InterruptedException err2) {
-									environment.getLogger().logp(Level.WARNING, getClass().getName(), "run", null, err2);
-								}
-							} catch(SQLException err) {
+							} catch(RuntimeException | IOException | SQLException err) {
 								environment.getLogger().logp(Level.SEVERE, getClass().getName(), "run", null, err);
 								try {
 									Thread.sleep(60000);
@@ -130,7 +115,7 @@ final public class BackupDaemon {
 			Logger logger = environment.getLogger();
 			boolean isDebug = logger.isLoggable(Level.FINE);
 			//AOServConnector conn = environment.getConnector();
-			List<FileReplication> removedList = new ArrayList<FileReplication>(threads.keySet());
+			List<FileReplication> removedList = new ArrayList<>(threads.keySet());
 			for(FileReplication ffr : thisServer.getFailoverFileReplications()) {
 				removedList.remove(ffr);
 				if(!threads.containsKey(ffr)) {
@@ -204,18 +189,15 @@ final public class BackupDaemon {
 		public Long getBitRate() {
 			try {
 				// Try to get the latest version of originalFfr
-				FileReplication newFfr = originalFfr.getTable().get(originalFfr.getKey());
+				FileReplication newFfr = originalFfr.getTable().getConnector().getBackup().getFileReplication().get(originalFfr.getPkey());
 				if(newFfr!=null) return newFfr.getBitRate();
-			} catch(IOException err) {
-				environment.getLogger().logp(Level.SEVERE, DynamicBitRateProvider.class.getName(), "getBitRate", null, err);
-			} catch(SQLException err) {
-				environment.getLogger().logp(Level.SEVERE, DynamicBitRateProvider.class.getName(), "getBitRate", null, err);
-			} catch(RuntimeException err) {
+			} catch(IOException | SQLException | RuntimeException err) {
 				environment.getLogger().logp(Level.SEVERE, DynamicBitRateProvider.class.getName(), "getBitRate", null, err);
 			}
 			return originalFfr.getBitRate();
 		}
 
+		@Override
 		public int getBlockSize() {
 			return originalFfr.getBlockSize();
 		}
@@ -299,6 +281,7 @@ final public class BackupDaemon {
 		 * Each replication runs in its own thread.  Also, each replication may run concurrently with other replications.
 		 * However, each replication may not run concurrently with itself as this could cause problems on the server.
 		 */
+		@Override
 		public void run() {
 			final Thread currentThread = Thread.currentThread();
 			while(true) {
@@ -497,33 +480,7 @@ final public class BackupDaemon {
 										runNow = false;
 									}
 									lastPassSuccessful = true;
-								} catch(RuntimeException T) {
-									environment.getLogger().logp(Level.SEVERE, getClass().getName(), "run", null, T);
-									synchronized(this) {
-										if(currentThread != thread) return;
-									}
-									//Randomized sleep interval to reduce master load on startup (5-15 minutes)
-									int sleepyTime = 5*60*1000 + random.nextInt(10*60*1000);
-									if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "Sleeping for "+sleepyTime+" milliseconds after an error");
-									try {
-										Thread.sleep(sleepyTime); 
-									} catch(InterruptedException err) {
-										// May be interrupted by stop call
-									}
-								} catch(IOException T) {
-									environment.getLogger().logp(Level.SEVERE, getClass().getName(), "run", null, T);
-									synchronized(this) {
-										if(currentThread != thread) return;
-									}
-									//Randomized sleep interval to reduce master load on startup (5-15 minutes)
-									int sleepyTime = 5*60*1000 + random.nextInt(10*60*1000);
-									if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "Sleeping for "+sleepyTime+" milliseconds after an error");
-									try {
-										Thread.sleep(sleepyTime); 
-									} catch(InterruptedException err) {
-										// May be interrupted by stop call
-									}
-								} catch(SQLException T) {
+								} catch(RuntimeException | IOException | SQLException T) {
 									environment.getLogger().logp(Level.SEVERE, getClass().getName(), "run", null, T);
 									synchronized(this) {
 										if(currentThread != thread) return;
@@ -684,7 +641,7 @@ final public class BackupDaemon {
 								final long[] chunkingSizes = useCompression ? new long[failoverBatchSize] : null;
 								final long[][] md5His = useCompression ? new long[failoverBatchSize][] : null;
 								final long[][] md5Los = useCompression ? new long[failoverBatchSize][] : null;
-								final Set<String> remainingRequiredFilenames = new LinkedHashSet<String>(environment.getRequiredFilenames(ffr));
+								final Set<String> remainingRequiredFilenames = new LinkedHashSet<>(environment.getRequiredFilenames(ffr));
 								final byte[] chunkBuffer = new byte[AOServDaemonProtocol.FAILOVER_FILE_REPLICATION_CHUNK_SIZE];
 								final Iterator<String> filenameIterator = environment.getFilenameIterator(ffr);
 								while(true) {
@@ -841,8 +798,7 @@ final public class BackupDaemon {
 													if(isDebug) logger.logp(Level.FINE, getClass().getName(), "backupPass", (retention>1 ? "Backup: " : "Failover: ") + "Sending file contents: "+filename);
 													// Shortcut for 0 length files (don't open for reading)
 													if(environment.getLength(ffr, filename) != 0) {
-														InputStream fileIn = environment.getInputStream(ffr, filename);
-														try {
+														try (InputStream fileIn = environment.getInputStream(ffr, filename)) {
 															// Read in full chunk size until end of file
 															// Only the last chunk may be less than a full chunk size
 															while(true) {
@@ -868,16 +824,12 @@ final public class BackupDaemon {
 																	break;
 																}
 															}
-														} finally {
-															fileIn.close();
 														}
 													}
 												} catch(FileNotFoundException err) {
 													// Normal when the file was deleted
 												} catch(IOException e) {
-													IOException ioExc = new IOException("filename="+ filename);
-													ioExc.initCause(e);
-													throw ioExc;
+													throw new IOException("filename=" + filename, e);
 												} finally {
 													synchronized(this) {
 														if(currentThread != thread) return;
@@ -894,8 +846,7 @@ final public class BackupDaemon {
 													final long[] md5Lo = md5Los[d];
 													assert md5Lo.length == md5Hi.length;
 													final int numChunks = md5Hi.length;
-													InputStream fileIn = environment.getInputStream(ffr, filename);
-													try {
+													try (InputStream fileIn = environment.getInputStream(ffr, filename)) {
 														int chunkNumber = 0;
 														int sendChunkCount = 0;
 														while(true) {
@@ -970,15 +921,11 @@ final public class BackupDaemon {
 															}
 														}
 														if(isDebug) logger.logp(Level.FINE, getClass().getName(), "backupPass", (retention>1 ? "Backup: " : "Failover: ") + "Chunking file contents: "+filename+": Sent "+sendChunkCount+" out of "+chunkNumber+" chunks");
-													} finally {
-														fileIn.close();
 													}
 												} catch(FileNotFoundException err) {
 													// Normal when the file was deleted
 												} catch(IOException e) {
-													IOException ioExc = new IOException("filename="+ filename);
-													ioExc.initCause(e);
-													throw ioExc;
+													throw new IOException("filename=" + filename, e);
 												} finally {
 													synchronized(this) {
 														if(currentThread != thread) return;
