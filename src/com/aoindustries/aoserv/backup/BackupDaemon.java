@@ -111,12 +111,12 @@ final public class BackupDaemon {
 	synchronized private void verifyThreads() throws IOException, SQLException {
 		// Ignore events coming in after shutdown
 		if(isStarted) {
-			Host thisServer = environment.getThisServer();
+			Host thisHost = environment.getThisHost();
 			Logger logger = environment.getLogger();
 			boolean isDebug = logger.isLoggable(Level.FINE);
 			//AOServConnector conn = environment.getConnector();
 			List<FileReplication> removedList = new ArrayList<>(threads.keySet());
-			for(FileReplication ffr : thisServer.getFailoverFileReplications()) {
+			for(FileReplication ffr : thisHost.getFailoverFileReplications()) {
 				removedList.remove(ffr);
 				if(!threads.containsKey(ffr)) {
 					if(isDebug) logger.logp(Level.FINE, getClass().getName(), "verifyThreads", "Starting BackupDaemonThread for "+ffr);
@@ -352,12 +352,12 @@ final public class BackupDaemon {
 							int currentMinute = cal.get(Calendar.MINUTE);
 
 							if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "newFFR="+newFFR);
-							Host thisServer=environment.getThisServer();
-							if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "thisServer="+thisServer);
-							Server thisAOServer = thisServer.getAOServer();
-							Server failoverServer = thisAOServer==null ? null : thisAOServer.getFailoverServer();
+							Host thisHost = environment.getThisHost();
+							if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "thisServer="+thisHost);
+							Server thisServer = thisHost.getLinuxServer();
+							Server failoverServer = thisServer==null ? null : thisServer.getFailoverServer();
 							if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "failoverServer="+failoverServer);
-							Server toServer=newFFR.getBackupPartition().getAOServer();
+							Server toServer = newFFR.getBackupPartition().getLinuxServer();
 							if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "toServer="+toServer);
 							synchronized(this) {
 								if(currentThread != thread) return;
@@ -530,16 +530,16 @@ final public class BackupDaemon {
 				synchronized(this) {
 					if(currentThread != thread) return;
 				}
-				final Host thisServer = environment.getThisServer();
+				final Host thisHost = environment.getThisHost();
 				final int failoverBatchSize = environment.getFailoverBatchSize(ffr);
-				final Server toServer=ffr.getBackupPartition().getAOServer();
+				final Server toServer = ffr.getBackupPartition().getLinuxServer();
 				final boolean useCompression = ffr.getUseCompression();
 				final short retention = ffr.getRetention().getDays();
 				synchronized(this) {
 					if(currentThread != thread) return;
 				}
 
-				if(isDebug) logger.logp(Level.FINE, getClass().getName(), "backupPass", (retention>1 ? "Backup: " : "Failover: ") + "Running failover from "+thisServer+" to "+toServer);
+				if(isDebug) logger.logp(Level.FINE, getClass().getName(), "backupPass", (retention>1 ? "Backup: " : "Failover: ") + "Running failover from "+thisHost+" to "+toServer);
 
 				Calendar cal = Calendar.getInstance();
 				final long startTime=cal.getTimeInMillis();

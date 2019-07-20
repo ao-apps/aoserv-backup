@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2013, 2017, 2018 by AO Industries, Inc.,
+ * Copyright 2003-2013, 2017, 2018, 2019 by AO Industries, Inc.,
  * 7262 Bull Pen Cir, Mobile, Alabama, 36695, U.S.A.
  * All rights reserved.
  */
@@ -84,9 +84,9 @@ public interface BackupEnvironment {
 	AOServConnector getConnector() throws IOException, SQLException;
 
 	/**
-	 * Gets the server this process is running on.
+	 * Gets the host this process is running on.
 	 */
-	Host getThisServer() throws IOException, SQLException;
+	Host getThisHost() throws IOException, SQLException;
 
 	/**
 	 * Gets the number of items per batch.  A higher value will consume
