@@ -40,6 +40,7 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.GregorianCalendar;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
@@ -307,7 +308,7 @@ final public class BackupDaemon {
 						if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "lastPassSuccessful="+lastPassSuccessful);
 					}
 					// Single calendar instance is used
-					Calendar cal = Calendar.getInstance();
+					GregorianCalendar gcal = new GregorianCalendar();
 					long lastCheckTime = -1;
 					int lastCheckHour = -1; // The last hour that the schedule was checked
 					int lastCheckMinute = -1; // The last minute that was checked
@@ -347,9 +348,9 @@ final public class BackupDaemon {
 							if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "Replication not enabled");
 						} else {
 							long currentTime = System.currentTimeMillis();
-							cal.setTimeInMillis(currentTime);
-							int currentHour = cal.get(Calendar.HOUR_OF_DAY);
-							int currentMinute = cal.get(Calendar.MINUTE);
+							gcal.setTimeInMillis(currentTime);
+							int currentHour = gcal.get(Calendar.HOUR_OF_DAY);
+							int currentMinute = gcal.get(Calendar.MINUTE);
 
 							if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "newFFR="+newFFR);
 							Host thisHost = environment.getThisHost();
@@ -541,8 +542,8 @@ final public class BackupDaemon {
 
 				if(isDebug) logger.logp(Level.FINE, getClass().getName(), "backupPass", (retention>1 ? "Backup: " : "Failover: ") + "Running failover from "+thisHost+" to "+toServer);
 
-				Calendar cal = Calendar.getInstance();
-				final long startTime=cal.getTimeInMillis();
+				GregorianCalendar gcal = new GregorianCalendar();
+				final long startTime = gcal.getTimeInMillis();
 
 				if(isDebug) logger.logp(Level.FINE, getClass().getName(), "backupPass", (retention>1 ? "Backup: " : "Failover: ") + "useCompression="+useCompression);
 				if(isDebug) logger.logp(Level.FINE, getClass().getName(), "backupPass", (retention>1 ? "Backup: " : "Failover: ") + "retention="+retention);
@@ -592,9 +593,9 @@ final public class BackupDaemon {
 						rawOut.writeShort(retention);
 
 						// Determine the date on the from server
-						final int year = cal.get(Calendar.YEAR);
-						final int month = cal.get(Calendar.MONTH)+1;
-						final int day = cal.get(Calendar.DAY_OF_MONTH);
+						final int year = gcal.get(Calendar.YEAR);
+						final int month = gcal.get(Calendar.MONTH)+1;
+						final int day = gcal.get(Calendar.DAY_OF_MONTH);
 						rawOut.writeShort(year);
 						rawOut.writeShort(month);
 						rawOut.writeShort(day);
