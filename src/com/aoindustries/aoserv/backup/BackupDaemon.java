@@ -303,7 +303,7 @@ final public class BackupDaemon {
 						FileReplicationLog lastLog = ffls.get(0);
 						if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "lastLog="+lastLog);
 						lastStartTime = lastLog.getStartTime();
-						if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "lastStartTime="+SQLUtility.getDateTime(lastStartTime==null ? -1 : lastStartTime.getTime()));
+						if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "lastStartTime="+SQLUtility.formatDateTime(lastStartTime));
 						lastPassSuccessful = lastLog.isSuccessful();
 						if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "lastPassSuccessful="+lastPassSuccessful);
 					}
