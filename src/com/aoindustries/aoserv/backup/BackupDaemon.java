@@ -289,10 +289,10 @@ final public class BackupDaemon {
 				synchronized(this) {
 					if(currentThread != thread) return;
 				}
+				Random random = environment.getRandom();
 				Logger logger = environment.getLogger();
 				boolean isDebug = logger.isLoggable(Level.FINE);
 				try {
-					Random random = environment.getRandom();
 					short retention = ffr.getRetention().getDays();
 
 					// Get the last start time and success flag from the database (will be cached locally unless an error occurs

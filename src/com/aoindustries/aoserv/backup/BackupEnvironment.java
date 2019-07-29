@@ -175,7 +175,7 @@ public interface BackupEnvironment {
 	 * because it is only used to randomize some sleep times to distribute load on the server
 	 * processes.
 	 */
-	Random getRandom() throws IOException, SQLException;
+	Random getRandom();
 
 	/**
 	 * Gets the logger for this environment.

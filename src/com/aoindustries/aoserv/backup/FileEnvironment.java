@@ -191,7 +191,7 @@ abstract public class FileEnvironment implements BackupEnvironment {
 	 */
 	@Override
 	public Random getRandom() {
-		return AOServConnector.getRandom();
+		return AOServConnector.getFastRandom();
 	}
 
 	@Override
