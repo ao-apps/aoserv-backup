@@ -190,7 +190,7 @@ abstract public class FileEnvironment implements BackupEnvironment {
 	 * Uses the random source from AOServClient
 	 */
 	@Override
-	public Random getRandom() throws IOException, SQLException {
+	public Random getRandom() {
 		return AOServConnector.getRandom();
 	}
 
