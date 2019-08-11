@@ -20,9 +20,9 @@ import com.aoindustries.io.BitRateOutputStream;
 import com.aoindustries.io.BitRateProvider;
 import com.aoindustries.io.ByteCountInputStream;
 import com.aoindustries.io.ByteCountOutputStream;
-import com.aoindustries.io.CompressedDataInputStream;
-import com.aoindustries.io.CompressedDataOutputStream;
 import com.aoindustries.io.TerminalWriter;
+import com.aoindustries.io.stream.StreamableInput;
+import com.aoindustries.io.stream.StreamableOutput;
 import com.aoindustries.io.unix.UnixFile;
 import com.aoindustries.math.SafeMath;
 import com.aoindustries.md5.MD5;
@@ -500,7 +500,7 @@ final public class BackupDaemon {
 					}
 				} catch(ThreadDeath TD) {
 					throw TD;
-				} catch(Throwable T) {
+				} catch(RuntimeException | IOException | SQLException T) {
 					environment.getLogger().logp(Level.SEVERE, getClass().getName(), "run", null, T);
 					synchronized(this) {
 						if(currentThread != thread) return;
@@ -584,7 +584,7 @@ final public class BackupDaemon {
 							if(currentThread != thread) return;
 						}
 						// Start the replication
-						CompressedDataOutputStream rawOut = daemonConn.getRequestOut(AOServDaemonProtocol.FAILOVER_FILE_REPLICATION);
+						StreamableOutput rawOut = daemonConn.getRequestOut(AOServDaemonProtocol.FAILOVER_FILE_REPLICATION);
 
 						MD5 md5 = useCompression ? new MD5() : null;
 
@@ -614,7 +614,7 @@ final public class BackupDaemon {
 							if(currentThread != thread) return;
 						}
 
-						CompressedDataInputStream rawIn=daemonConn.getResponseIn();
+						StreamableInput rawIn=daemonConn.getResponseIn();
 						int result=rawIn.read();
 						synchronized(this) {
 							if(currentThread != thread) return;
@@ -627,14 +627,14 @@ final public class BackupDaemon {
 									new DynamicBitRateProvider(environment, ffr)
 								)
 							);
-							final CompressedDataOutputStream out = new CompressedDataOutputStream(
+							final StreamableOutput out = new StreamableOutput(
 								/*useCompression
 								? new AutoFinishGZIPOutputStream(new DontCloseOutputStream(rawBytesOutStream), BufferManager.BUFFER_SIZE)
 								:*/ rawBytesOutStream
 							);
 
 							final ByteCountInputStream rawBytesInStream = new ByteCountInputStream(rawIn);
-							final CompressedDataInputStream in = new CompressedDataInputStream(rawBytesInStream);
+							final StreamableInput in = new StreamableInput(rawBytesInStream);
 							try {
 								// Do requests in batches
 								final String[] filenames = new String[failoverBatchSize];
@@ -717,7 +717,7 @@ final public class BackupDaemon {
 									out.flush();
 									// Recreate the compressed stream after flush because GZIPOutputStream is broken.
 									/*if(useCompression) {
-										out = new CompressedDataOutputStream(
+										out = new StreamableOutput(
 											new AutoFinishGZIPOutputStream(new DontCloseOutputStream(rawBytesOutStream), BufferManager.BUFFER_SIZE)
 										);
 									}*/
@@ -773,7 +773,7 @@ final public class BackupDaemon {
 
 									// Process the results
 									//DeflaterOutputStream deflaterOut;
-									final CompressedDataOutputStream outgoing;
+									final StreamableOutput outgoing;
 
 									if(hasRequestData) {
 										//deflaterOut = null;
@@ -963,7 +963,7 @@ final public class BackupDaemon {
 								out.flush();
 								// Recreate the compressed stream after flush because GZIPOutputStream is broken.
 								/*if(useCompression) {
-									out = new CompressedDataOutputStream(
+									out = new StreamableOutput(
 										new AutoFinishGZIPOutputStream(new DontCloseOutputStream(rawBytesOutStream), BufferManager.BUFFER_SIZE)
 									);
 								}*/
@@ -1064,7 +1064,7 @@ final public class BackupDaemon {
 					done=true;
 				} catch (ThreadDeath TD) {
 					throw TD;
-				} catch (Throwable T) {
+				} catch (RuntimeException | IOException | SQLException T) {
 					Logger logger = environment.getLogger();
 					logger.logp(Level.SEVERE, BackupDaemon.class.getName(), "main", null, T);
 					try {
