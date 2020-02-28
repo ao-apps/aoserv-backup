@@ -575,8 +575,7 @@ final public class BackupDaemon {
 						toServer.getPoolSize(),
 						AOPool.DEFAULT_MAX_CONNECTION_AGE,
 						AOServClientConfiguration.getSslTruststorePath(),
-						AOServClientConfiguration.getSslTruststorePassword(),
-						environment.getLogger()
+						AOServClientConfiguration.getSslTruststorePassword()
 					);
 					AOServDaemonConnection daemonConn = daemonConnector.getConnection();
 					try {
