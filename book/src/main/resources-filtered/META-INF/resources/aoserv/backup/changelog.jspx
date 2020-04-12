@@ -54,9 +54,7 @@ along with aoserv-backup.  If not, see <http://www.gnu.org/licenses />.
 			>
 				<ul>
 					<li>Project moved to GitHub and Maven.</li>
-					<!-- TODO:
 					<li>Updated to Java 8 coding standards.</li>
-					-->
 				</ul>
 			</changelog:release>
 		</c:if>

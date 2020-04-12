@@ -1,5 +1,5 @@
 /*
- * Copyright 2001-2013, 2015, 2016, 2017, 2018, 2019 by AO Industries, Inc.,
+ * Copyright 2001-2013, 2015, 2016, 2017, 2018, 2019, 2020 by AO Industries, Inc.,
  * 7262 Bull Pen Cir, Mobile, Alabama, 36695, U.S.A.
  * All rights reserved.
  */
@@ -87,20 +87,17 @@ final public class BackupDaemon {
 			conn.getBackup().getFileReplication().addTableListener(tableListener);
 			isStarted = true;
 			new Thread(
-				new Runnable() {
-					@Override
-					public void run() {
-						while(true) {
+				() -> {
+					while(true) {
+						try {
+							verifyThreads();
+							break;
+						} catch(RuntimeException | IOException | SQLException err) {
+							environment.getLogger().logp(Level.SEVERE, getClass().getName(), "run", null, err);
 							try {
-								verifyThreads();
-								break;
-							} catch(RuntimeException | IOException | SQLException err) {
-								environment.getLogger().logp(Level.SEVERE, getClass().getName(), "run", null, err);
-								try {
-									Thread.sleep(60000);
-								} catch(InterruptedException err2) {
-									environment.getLogger().logp(Level.WARNING, getClass().getName(), "run", null, err2);
-								}
+								Thread.sleep(60000);
+							} catch(InterruptedException err2) {
+								environment.getLogger().logp(Level.WARNING, getClass().getName(), "run", null, err2);
 							}
 						}
 					}
@@ -1039,18 +1036,10 @@ final public class BackupDaemon {
 			// Load the environment class as provided on the command line
 			BackupEnvironment environment;
 			try {
-				environment=(BackupEnvironment)Class.forName(args[0]).newInstance();
-			} catch(ClassNotFoundException err) {
+				environment=(BackupEnvironment)Class.forName(args[0]).getConstructor().newInstance();
+			} catch(ReflectiveOperationException err) {
 				ErrorPrinter.printStackTraces(err, new Object[] {"environment_classname="+args[0]});
 				System.exit(2);
-				return;
-			} catch(InstantiationException err) {
-				ErrorPrinter.printStackTraces(err, new Object[] {"environment_classname="+args[0]});
-				System.exit(3);
-				return;
-			} catch(IllegalAccessException err) {
-				ErrorPrinter.printStackTraces(err, new Object[] {"environment_classname="+args[0]});
-				System.exit(4);
 				return;
 			}
 
