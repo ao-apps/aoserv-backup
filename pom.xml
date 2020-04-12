@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+aoserv-backup - Backup client for the AOServ Platform.
+Copyright (C) 2020  AO Industries, Inc.
+    support@aoindustries.com
+    7262 Bull Pen Cir
+    Mobile, AL 36695
+
+This file is part of aoserv-backup.
+
+aoserv-backup is free software: you can redistribute it and/or modify
+it under the terms of the GNU Lesser General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+aoserv-backup is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Lesser General Public License for more details.
+
+You should have received a copy of the GNU Lesser General Public License
+along with aoserv-backup.  If not, see <http://www.gnu.org/licenses />.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+	<parent>
+		<groupId>com.aoindustries</groupId><artifactId>ao-oss-parent</artifactId><version>1.7.2-POST-SNAPSHOT</version>
+		<relativePath>../../ao-oss-parent/pom.xml</relativePath>
+	</parent>
+
+	<groupId>com.aoindustries</groupId><artifactId>aoserv-backup</artifactId><version>1.84.1-SNAPSHOT</version>
+	<packaging>bundle</packaging>
+
+	<properties>
+		<javadoc.breadcrumbs><![CDATA[<a target="_top" href="https://aoindustries.com/aoserv/">AOServ</a>
+/ <a target="_top" href="${project.url}">${shortTitle}</a>]]></javadoc.breadcrumbs>
+		<shortTitle>Backup</shortTitle>
+		<description.html><![CDATA[Backup client for the <a target="_top" href="https://aoindustries.com/aoserv/">AOServ Platform</a>.]]></description.html>
+	</properties>
+
+	<name>AOServ Backup</name>
+	<url>https://aoindustries.com/aoserv/backup/</url>
+	<description>Backup client for the AOServ Platform.</description>
+	<inceptionYear>2001</inceptionYear>
+
+	<scm>
+		<connection>scm:git:git://github.com/aoindustries/aoserv-backup.git</connection>
+		<developerConnection>scm:git:git@github.com:aoindustries/aoserv-backup.git</developerConnection>
+		<url>https://github.com/aoindustries/aoserv-backup</url>
+		<tag>HEAD</tag>
+	</scm>
+
+	<issueManagement>
+		<system>GitHub Issues</system>
+		<url>https://github.com/aoindustries/aoserv-backup/issues</url>
+	</issueManagement>
+
+	<profiles>
+		<profile>
+			<id>release</id>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId><artifactId>maven-javadoc-plugin</artifactId>
+						<configuration>
+							<links>
+								<link>${javadoc.link.javase}</link>
+								<!-- Direct -->
+								<link>https://aoindustries.com/ao-io-unix/apidocs/</link>
+								<link>https://aoindustries.com/ao-lang/apidocs/</link>
+								<link>https://aoindustries.com/ao-net-types/apidocs/</link>
+								<link>https://aoindustries.com/aocode-public/apidocs/</link>
+								<link>https://aoindustries.com/aoserv/client/apidocs/</link>
+								<link>https://aoindustries.com/aoserv/daemon-client/apidocs/</link>
+							</links>
+						</configuration>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
+
+	<dependencyManagement>
+		<dependencies>
+			<!-- Direct -->
+			<dependency>
+				<groupId>com.aoindustries</groupId><artifactId>ao-io-unix</artifactId><version>3.0.1${POST-SNAPSHOT}</version>
+			</dependency>
+			<dependency>
+				<groupId>com.aoindustries</groupId><artifactId>ao-lang</artifactId><version>4.1.0${POST-SNAPSHOT}</version>
+			</dependency>
+			<dependency>
+				<groupId>com.aoindustries</groupId><artifactId>ao-net-types</artifactId><version>1.2.1${POST-SNAPSHOT}</version>
+			</dependency>
+			<dependency>
+				<groupId>com.aoindustries</groupId><artifactId>aocode-public</artifactId><version>4.0.0${POST-SNAPSHOT}</version>
+			</dependency>
+			<dependency>
+				<groupId>com.aoindustries</groupId><artifactId>aoserv-client</artifactId><version>1.84.1${POST-SNAPSHOT}</version>
+			</dependency>
+			<dependency>
+				<groupId>com.aoindustries</groupId><artifactId>aoserv-daemon-client</artifactId><version>1.84.0${POST-SNAPSHOT}</version>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
+
+	<dependencies>
+		<!-- Direct -->
+		<dependency>
+			<groupId>com.aoindustries</groupId><artifactId>ao-io-unix</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.aoindustries</groupId><artifactId>ao-lang</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.aoindustries</groupId><artifactId>ao-net-types</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.aoindustries</groupId><artifactId>aocode-public</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.aoindustries</groupId><artifactId>aoserv-client</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.aoindustries</groupId><artifactId>aoserv-daemon-client</artifactId>
+		</dependency>
+	</dependencies>
+</project>
