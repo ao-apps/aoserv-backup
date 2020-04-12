@@ -1,11 +1,12 @@
 /*
- * Copyright 2003-2009, 2018, 2019 by AO Industries, Inc.,
+ * Copyright 2003-2009, 2018, 2019, 2020 by AO Industries, Inc.,
  * 7262 Bull Pen Cir, Mobile, Alabama, 36695, U.S.A.
  * All rights reserved.
  */
 package com.aoindustries.aoserv.backup;
 
 import com.aoindustries.aoserv.client.backup.FileReplication;
+import com.aoindustries.aoserv.client.net.Host;
 import com.aoindustries.io.unix.Stat;
 import com.aoindustries.io.unix.UnixFile;
 import java.io.File;
