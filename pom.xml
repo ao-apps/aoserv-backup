@@ -72,7 +72,7 @@ along with aoserv-backup.  If not, see <http://www.gnu.org/licenses />.
 								<link>https://aoindustries.com/ao-net-types/apidocs/</link>
 								<link>https://aoindustries.com/aocode-public/apidocs/</link>
 								<link>https://aoindustries.com/aoserv/client/apidocs/</link>
-								<link>https://aoindustries.com/aoserv/daemon-client/apidocs/</link>
+								<link>https://aoindustries.com/aoserv/daemon/client/apidocs/</link>
 							</links>
 						</configuration>
 					</plugin>
