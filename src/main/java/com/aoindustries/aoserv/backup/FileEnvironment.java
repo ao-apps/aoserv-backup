@@ -1,6 +1,6 @@
 /*
  * aoserv-backup - Backup client for the AOServ Platform.
- * Copyright (C) 2003-2013, 2017, 2018, 2019  AO Industries, Inc.
+ * Copyright (C) 2003-2013, 2017, 2018, 2019, 2020  AO Industries, Inc.
  *     support@aoindustries.com
  *     7262 Bull Pen Cir
  *     Mobile, AL 36695
@@ -129,10 +129,12 @@ abstract public class FileEnvironment implements BackupEnvironment {
 	}
 
 	@Override
+	@SuppressWarnings("NoopMethodInAbstractClass")
 	public void preBackup(FileReplication ffr) throws IOException, SQLException {
 	}
 
 	@Override
+	@SuppressWarnings("NoopMethodInAbstractClass")
 	public void init(FileReplication ffr) throws IOException, SQLException {
 	}
 
@@ -145,6 +147,7 @@ abstract public class FileEnvironment implements BackupEnvironment {
 	}
 
 	@Override
+	@SuppressWarnings("NoopMethodInAbstractClass")
 	public void postBackup(FileReplication ffr) throws IOException, SQLException {
 	}
 
