@@ -98,6 +98,7 @@ final public class BackupDaemon {
 	/**
 	 * Starts the backup daemon (as one thread per FileReplication.
 	 */
+	@SuppressWarnings({"UseSpecificCatch", "TooBroadCatch", "SleepWhileInLoop", "SleepWhileHoldingLock"})
 	synchronized public void start() throws IOException, SQLException {
 		if(!isStarted) {
 			AOServConnector conn = environment.getConnector();
@@ -203,6 +204,7 @@ final public class BackupDaemon {
 		}
 
 		@Override
+		@SuppressWarnings({"UseSpecificCatch", "TooBroadCatch"})
 		public Long getBitRate() {
 			try {
 				// Try to get the latest version of originalFfr
@@ -227,7 +229,9 @@ final public class BackupDaemon {
 		private static String convertExtraInfo(Object[] extraInfo) {
 			if(extraInfo==null) return null;
 			StringBuilder SB = new StringBuilder();
-			for(Object o : extraInfo) SB.append(o).append('\n');
+			for(Object o : extraInfo) {
+				SB.append(o).append(System.lineSeparator());
+			}
 			return SB.toString();
 		}
 
@@ -301,6 +305,7 @@ final public class BackupDaemon {
 		 * However, each replication may not run concurrently with itself as this could cause problems on the server.
 		 */
 		@Override
+		@SuppressWarnings({"UnnecessaryLabelOnBreakStatement", "UseSpecificCatch", "TooBroadCatch", "SleepWhileInLoop"})
 		public void run() {
 			final Thread currentThread = Thread.currentThread();
 			while(true) {
@@ -537,6 +542,7 @@ final public class BackupDaemon {
 			}
 		}
 
+		@SuppressWarnings({"UseSpecificCatch", "TooBroadCatch", "FinallyDiscardsException", "SleepWhileInLoop"})
 		private void backupPass(FileReplication ffr) throws IOException, SQLException {
 			final Thread currentThread = Thread.currentThread();
 
@@ -970,7 +976,7 @@ final public class BackupDaemon {
 									if(!remainingRequiredFilenames.isEmpty()) {
 										StringBuilder message = new StringBuilder("Required files not found.  Successfully sent all found, but not flagging the backup as successful because the following files were missing:");
 										for(String filename : remainingRequiredFilenames) {
-											message.append('\n').append(filename);
+											message.append(System.lineSeparator()).append(filename);
 										}
 										throw new IOException(message.toString());
 									}
@@ -1049,13 +1055,14 @@ final public class BackupDaemon {
 	 * provided in <code>com/aoindustries/aoserv/backup/aoserv-backup.properties</code>.
 	 * This will typically be called by the init scripts of the dedicated machine.
 	 */
+	@SuppressWarnings({"UseOfSystemOutOrSystemErr", "UseSpecificCatch", "TooBroadCatch", "SleepWhileInLoop"})
 	public static void main(String[] args) {
 		if(args.length != 1) {
 			try {
 				showUsage();
 				System.exit(1);
 			} catch(IOException err) {
-				ErrorPrinter.printStackTraces(err);
+				ErrorPrinter.printStackTraces(err, System.err);
 				System.exit(5);
 			}
 		} else {
@@ -1064,7 +1071,7 @@ final public class BackupDaemon {
 			try {
 				environment=(BackupEnvironment)Class.forName(args[0]).getConstructor().newInstance();
 			} catch(ReflectiveOperationException err) {
-				ErrorPrinter.printStackTraces(err, new Object[] {"environment_classname="+args[0]});
+				ErrorPrinter.printStackTraces(err, System.err, new Object[] {"environment_classname="+args[0]});
 				System.exit(2);
 				return;
 			}
@@ -1092,6 +1099,7 @@ final public class BackupDaemon {
 	}
 
 	public static void showUsage() throws IOException {
+		@SuppressWarnings("UseOfSystemOutOrSystemErr")
 		TerminalWriter out=new TerminalWriter(new OutputStreamWriter(System.err));
 		out.println();
 		out.boldOn();

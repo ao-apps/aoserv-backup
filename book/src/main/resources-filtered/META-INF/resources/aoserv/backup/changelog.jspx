@@ -37,7 +37,7 @@ along with aoserv-backup.  If not, see <http://www.gnu.org/licenses />.
 		shortTitle="Changelog"
 		tocLevels="1"
 		datePublished="2020-04-12T15:03:27-05:00"
-		dateModified="2020-04-25T23:02:08-05:00"
+		dateModified="2020-09-15T04:44:14-05:00"
 	>
 		<!-- The current snapshot, unreleased version -->
 		<c:set var="version" value="@{com.aoindustries:aoserv-backup:pom.version}" />
@@ -52,7 +52,11 @@ along with aoserv-backup.  If not, see <http://www.gnu.org/licenses />.
 				groupId="@{project.groupId}"
 				artifactId="@{documented.artifactId}"
 				scmUrl="@{project.scm.url}"
-			/>
+			>
+				<ul>
+					<li>Updated dependencies.</li>
+				</ul>
+			</changelog:release>
 		</c:if>
 
 		<changelog:release
