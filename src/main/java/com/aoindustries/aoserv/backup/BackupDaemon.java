@@ -109,8 +109,10 @@ final public class BackupDaemon {
 						try {
 							verifyThreads();
 							break;
-						} catch(RuntimeException | IOException | SQLException err) {
-							environment.getLogger().logp(Level.SEVERE, getClass().getName(), "run", null, err);
+						} catch(ThreadDeath td) {
+							throw td;
+						} catch(Throwable t) {
+							environment.getLogger().logp(Level.SEVERE, getClass().getName(), "run", null, t);
 							try {
 								Thread.sleep(60000);
 							} catch(InterruptedException err2) {
@@ -206,8 +208,10 @@ final public class BackupDaemon {
 				// Try to get the latest version of originalFfr
 				FileReplication newFfr = originalFfr.getTable().getConnector().getBackup().getFileReplication().get(originalFfr.getPkey());
 				if(newFfr!=null) return newFfr.getBitRate();
-			} catch(IOException | SQLException | RuntimeException err) {
-				environment.getLogger().logp(Level.SEVERE, DynamicBitRateProvider.class.getName(), "getBitRate", null, err);
+			} catch(ThreadDeath td) {
+				throw td;
+			} catch(Throwable t) {
+				environment.getLogger().logp(Level.SEVERE, DynamicBitRateProvider.class.getName(), "getBitRate", null, t);
 			}
 			return originalFfr.getBitRate();
 		}
@@ -495,8 +499,10 @@ final public class BackupDaemon {
 										runNow = false;
 									}
 									lastPassSuccessful = true;
-								} catch(RuntimeException | IOException | SQLException T) {
-									environment.getLogger().logp(Level.SEVERE, getClass().getName(), "run", null, T);
+								} catch(ThreadDeath td) {
+									throw td;
+								} catch(Throwable t) {
+									environment.getLogger().logp(Level.SEVERE, getClass().getName(), "run", null, t);
 									synchronized(this) {
 										if(currentThread != thread) return;
 									}
@@ -512,10 +518,10 @@ final public class BackupDaemon {
 							}
 						}
 					}
-				} catch(ThreadDeath TD) {
-					throw TD;
-				} catch(RuntimeException | IOException | SQLException T) {
-					environment.getLogger().logp(Level.SEVERE, getClass().getName(), "run", null, T);
+				} catch(ThreadDeath td) {
+					throw td;
+				} catch(Throwable t) {
+					environment.getLogger().logp(Level.SEVERE, getClass().getName(), "run", null, t);
 					synchronized(this) {
 						if(currentThread != thread) return;
 					}
@@ -591,234 +597,283 @@ final public class BackupDaemon {
 						AOServClientConfiguration.getSslTruststorePath(),
 						AOServClientConfiguration.getSslTruststorePassword()
 					);
-					AOServDaemonConnection daemonConn = daemonConnector.getConnection();
-					try {
-						synchronized(this) {
-							if(currentThread != thread) return;
-						}
-						// Start the replication
-						StreamableOutput rawOut = daemonConn.getRequestOut(AOServDaemonProtocol.FAILOVER_FILE_REPLICATION);
-
-						MD5 md5 = useCompression ? new MD5() : null;
-
-						rawOut.writeLong(daemonAccess.getKey());
-						rawOut.writeBoolean(useCompression);
-						rawOut.writeShort(retention);
-
-						// Determine the date on the from server
-						final int year = gcal.get(Calendar.YEAR);
-						final int month = gcal.get(Calendar.MONTH)+1;
-						final int day = gcal.get(Calendar.DAY_OF_MONTH);
-						rawOut.writeShort(year);
-						rawOut.writeShort(month);
-						rawOut.writeShort(day);
-						if(retention == 1) {
-							List<com.aoindustries.aoserv.client.mysql.Server.Name> replicatedMySQLServers = environment.getReplicatedMySQLServers(ffr);
-							List<String> replicatedMySQLMinorVersions = environment.getReplicatedMySQLMinorVersions(ffr);
-							int len = replicatedMySQLServers.size();
-							rawOut.writeCompressedInt(len);
-							for(int c = 0; c < len; c++) {
-								rawOut.writeUTF(replicatedMySQLServers.get(c).toString());
-								rawOut.writeUTF(replicatedMySQLMinorVersions.get(c));
+					try (AOServDaemonConnection daemonConn = daemonConnector.getConnection()) {
+						try {
+							synchronized(this) {
+								if(currentThread != thread) return;
 							}
-						}
-						rawOut.flush();
-						synchronized(this) {
-							if(currentThread != thread) return;
-						}
+							// Start the replication
+							StreamableOutput rawOut = daemonConn.getRequestOut(AOServDaemonProtocol.FAILOVER_FILE_REPLICATION);
 
-						StreamableInput rawIn=daemonConn.getResponseIn();
-						int result=rawIn.read();
-						synchronized(this) {
-							if(currentThread != thread) return;
-						}
-						if(result == AOServDaemonProtocol.NEXT) {
-							// Only the output is limited because input should always be smaller than the output
-							final ByteCountOutputStream rawBytesOutStream = new ByteCountOutputStream(
-								new BitRateOutputStream(
-									rawOut,
-									new DynamicBitRateProvider(environment, ffr)
-								)
-							);
-							final StreamableOutput out = new StreamableOutput(
-								/*useCompression
-								? new AutoFinishGZIPOutputStream(new DontCloseOutputStream(rawBytesOutStream), BufferManager.BUFFER_SIZE)
-								:*/ rawBytesOutStream
-							);
+							MD5 md5 = useCompression ? new MD5() : null;
 
-							final ByteCountInputStream rawBytesInStream = new ByteCountInputStream(rawIn);
-							final StreamableInput in = new StreamableInput(rawBytesInStream);
-							try {
-								// Do requests in batches
-								final String[] filenames = new String[failoverBatchSize];
-								final int[] results = new int[failoverBatchSize];
-								final long[] chunkingSizes = useCompression ? new long[failoverBatchSize] : null;
-								final long[][] md5His = useCompression ? new long[failoverBatchSize][] : null;
-								final long[][] md5Los = useCompression ? new long[failoverBatchSize][] : null;
-								final Set<String> remainingRequiredFilenames = new LinkedHashSet<>(environment.getRequiredFilenames(ffr));
-								final byte[] chunkBuffer = new byte[AOServDaemonProtocol.FAILOVER_FILE_REPLICATION_CHUNK_SIZE];
-								final Iterator<String> filenameIterator = environment.getFilenameIterator(ffr);
-								while(true) {
-									synchronized(this) {
-										if(currentThread != thread) return;
-									}
-									int batchSize = getNextFilenames(remainingRequiredFilenames, filenameIterator, filenames, failoverBatchSize);
-									if(batchSize == 0) break;
+							rawOut.writeLong(daemonAccess.getKey());
+							rawOut.writeBoolean(useCompression);
+							rawOut.writeShort(retention);
 
-									out.writeCompressedInt(batchSize);
-									for(int d = 0; d < batchSize; d++) {
-										scanned++;
-										String filename = filenames[d];
-										try {
-											long mode = environment.getStatMode(ffr, filename);
-											if(!UnixFile.isSocket(mode)) {
-												// Get all the values first to avoid FileNotFoundException in middle of protocol
-												boolean isRegularFile = UnixFile.isRegularFile(mode);
-												long size = isRegularFile ? environment.getLength(ffr, filename) : -1;
-												int uid = environment.getUid(ffr, filename);
-												int gid = environment.getGid(ffr, filename);
-												boolean isSymLink = UnixFile.isSymLink(mode);
-												long modifyTime = isSymLink ? -1 : environment.getModifyTime(ffr, filename);
-												//if(modifyTime<1000 && !isSymLink && log.isWarnEnabled()) log.warn("Non-symlink modifyTime<1000: "+filename+": "+modifyTime);
-												String symLinkTarget;
-												if(isSymLink) {
-													try {
-														symLinkTarget = environment.readLink(ffr, filename);
-													} catch(SecurityException err) {
-														environment.getLogger().logp(Level.SEVERE, getClass().getName(), "backupPass", "SecurityException trying to readlink: "+filename, err);
-														throw err;
-													} catch(IOException err) {
-														environment.getLogger().logp(Level.SEVERE, getClass().getName(), "backupPass", "IOException trying to readlink: "+filename, err);
-														throw err;
-													}
-												} else {
-													symLinkTarget = null;
-												}
-												boolean isDevice = UnixFile.isBlockDevice(mode) || UnixFile.isCharacterDevice(mode);
-												long deviceID = isDevice?environment.getDeviceIdentifier(ffr, filename):-1;
+							// Determine the date on the from server
+							final int year = gcal.get(Calendar.YEAR);
+							final int month = gcal.get(Calendar.MONTH)+1;
+							final int day = gcal.get(Calendar.DAY_OF_MONTH);
+							rawOut.writeShort(year);
+							rawOut.writeShort(month);
+							rawOut.writeShort(day);
+							if(retention == 1) {
+								List<com.aoindustries.aoserv.client.mysql.Server.Name> replicatedMySQLServers = environment.getReplicatedMySQLServers(ffr);
+								List<String> replicatedMySQLMinorVersions = environment.getReplicatedMySQLMinorVersions(ffr);
+								int len = replicatedMySQLServers.size();
+								rawOut.writeCompressedInt(len);
+								for(int c = 0; c < len; c++) {
+									rawOut.writeUTF(replicatedMySQLServers.get(c).toString());
+									rawOut.writeUTF(replicatedMySQLMinorVersions.get(c));
+								}
+							}
+							rawOut.flush();
+							synchronized(this) {
+								if(currentThread != thread) return;
+							}
 
-												out.writeBoolean(true);
-												// Adjust the filename to server formatting
-												String serverPath = environment.getServerPath(ffr, filename);
-												out.writeCompressedUTF(serverPath, 0);
-												out.writeLong(mode);
-												if(UnixFile.isRegularFile(mode)) out.writeLong(size);
-												if(uid<0 || uid>65535) {
-													environment.getLogger().logp(Level.WARNING, getClass().getName(), "backupPass", null, new IOException("UID out of range, converted to 0, uid="+uid+" and path="+filename));
-													uid = 0;
-												}
-												out.writeCompressedInt(uid);
-												if(gid<0 || gid>65535) {
-													environment.getLogger().logp(Level.WARNING, getClass().getName(), "backupPass", null, new IOException("GID out of range, converted to 0, gid="+gid+" and path="+filename));
-													gid = 0;
-												}
-												out.writeCompressedInt(gid);
-												// TODO: Once glibc >= 2.6 and kernel >= 2.6.22, can use lutimes call for symbolic links
-												if(!isSymLink) out.writeLong(modifyTime);
-												if(isSymLink) out.writeCompressedUTF(symLinkTarget, 1);
-												else if(isDevice) out.writeLong(deviceID);
-											} else {
-												filenames[d] = null;
-												out.writeBoolean(false);
-											}
-										} catch(FileNotFoundException err) {
-											// Normal because of a dynamic file system
-											filenames[d]=null;
-											out.writeBoolean(false);
-										}
-									}
-									out.flush();
-									// Recreate the compressed stream after flush because GZIPOutputStream is broken.
-									/*if(useCompression) {
-										out = new StreamableOutput(
-											new AutoFinishGZIPOutputStream(new DontCloseOutputStream(rawBytesOutStream), BufferManager.BUFFER_SIZE)
-										);
-									}*/
-									synchronized(this) {
-										if(currentThread != thread) return;
-									}
+							StreamableInput rawIn=daemonConn.getResponseIn();
+							int result=rawIn.read();
+							synchronized(this) {
+								if(currentThread != thread) return;
+							}
+							if(result == AOServDaemonProtocol.NEXT) {
+								// Only the output is limited because input should always be smaller than the output
+								final ByteCountOutputStream rawBytesOutStream = new ByteCountOutputStream(
+									new BitRateOutputStream(
+										rawOut,
+										new DynamicBitRateProvider(environment, ffr)
+									)
+								);
+								final StreamableOutput out = new StreamableOutput(
+									/*useCompression
+									? new AutoFinishGZIPOutputStream(new DontCloseOutputStream(rawBytesOutStream), BufferManager.BUFFER_SIZE)
+									:*/ rawBytesOutStream
+								);
 
-									// Read the results
-									result = in.read();
-									synchronized(this) {
-										if(currentThread != thread) return;
-									}
-									boolean hasRequestData = false;
-									if(result == AOServDaemonProtocol.NEXT) {
-										for(int d = 0; d < batchSize; d++) {
-											if(filenames[d] != null) {
-												synchronized(this) {
-													if(currentThread != thread) return;
-												}
-												result = in.read();
-												results[d] = result;
-												if(result == AOServDaemonProtocol.FAILOVER_FILE_REPLICATION_MODIFIED_REQUEST_DATA) {
-													hasRequestData = true;
-												} else if(result == AOServDaemonProtocol.FAILOVER_FILE_REPLICATION_MODIFIED_REQUEST_DATA_CHUNKED) {
-													hasRequestData = true;
-													long chunkingSize = in.readLong();
-													int numChunks;
-													{
-														long numChunksL = chunkingSize >> AOServDaemonProtocol.FAILOVER_FILE_REPLICATION_CHUNK_SIZE_BITS;
-														if((chunkingSize & (AOServDaemonProtocol.FAILOVER_FILE_REPLICATION_CHUNK_SIZE-1)) != 0) numChunksL++;
-														numChunks = SafeMath.castInt(numChunksL);
-													}
-													long[] md5Hi = new long[numChunks];
-													long[] md5Lo = new long[numChunks];
-													for(int e = 0; e < numChunks; e++) {
-														md5Hi[e] = in.readLong();
-														md5Lo[e] = in.readLong();
-													}
-													chunkingSizes[d] = chunkingSize;
-													md5His[d] = md5Hi;
-													md5Los[d] = md5Lo;
-												}
-											}
-										}
-									} else {
-										if (result == AOServDaemonProtocol.IO_EXCEPTION) throw new IOException(in.readUTF());
-										else if (result == AOServDaemonProtocol.SQL_EXCEPTION) throw new SQLException(in.readUTF());
-										else throw new IOException("Unknown result: " + result);
-									}
-									synchronized(this) {
-										if(currentThread != thread) return;
-									}
-
-									// Process the results
-									//DeflaterOutputStream deflaterOut;
-									final StreamableOutput outgoing;
-
-									if(hasRequestData) {
-										//deflaterOut = null;
-										outgoing = out;
-									} else {
-										//deflaterOut = null;
-										outgoing = null;
-									}
-									for(int d = 0; d < batchSize; d++) {
+								final ByteCountInputStream rawBytesInStream = new ByteCountInputStream(rawIn);
+								final StreamableInput in = new StreamableInput(rawBytesInStream);
+								try {
+									// Do requests in batches
+									final String[] filenames = new String[failoverBatchSize];
+									final int[] results = new int[failoverBatchSize];
+									final long[] chunkingSizes = useCompression ? new long[failoverBatchSize] : null;
+									final long[][] md5His = useCompression ? new long[failoverBatchSize][] : null;
+									final long[][] md5Los = useCompression ? new long[failoverBatchSize][] : null;
+									final Set<String> remainingRequiredFilenames = new LinkedHashSet<>(environment.getRequiredFilenames(ffr));
+									final byte[] chunkBuffer = new byte[AOServDaemonProtocol.FAILOVER_FILE_REPLICATION_CHUNK_SIZE];
+									final Iterator<String> filenameIterator = environment.getFilenameIterator(ffr);
+									while(true) {
 										synchronized(this) {
 											if(currentThread != thread) return;
 										}
-										String filename = filenames[d];
-										if(filename != null) {
-											result = results[d];
-											if(result == AOServDaemonProtocol.FAILOVER_FILE_REPLICATION_MODIFIED) {
-												if(isDebug) logger.logp(Level.FINE, getClass().getName(), "backupPass", (retention>1 ? "Backup: " : "Failover: ") + "File modified: "+filename);
-												updated++;
-											} else if(result == AOServDaemonProtocol.FAILOVER_FILE_REPLICATION_MODIFIED_REQUEST_DATA) {
-												assert outgoing != null;
-												updated++;
-												try {
-													if(isDebug) logger.logp(Level.FINE, getClass().getName(), "backupPass", (retention>1 ? "Backup: " : "Failover: ") + "Sending file contents: "+filename);
-													// Shortcut for 0 length files (don't open for reading)
-													if(environment.getLength(ffr, filename) != 0) {
+										int batchSize = getNextFilenames(remainingRequiredFilenames, filenameIterator, filenames, failoverBatchSize);
+										if(batchSize == 0) break;
+
+										out.writeCompressedInt(batchSize);
+										for(int d = 0; d < batchSize; d++) {
+											scanned++;
+											String filename = filenames[d];
+											try {
+												long mode = environment.getStatMode(ffr, filename);
+												if(!UnixFile.isSocket(mode)) {
+													// Get all the values first to avoid FileNotFoundException in middle of protocol
+													boolean isRegularFile = UnixFile.isRegularFile(mode);
+													long size = isRegularFile ? environment.getLength(ffr, filename) : -1;
+													int uid = environment.getUid(ffr, filename);
+													int gid = environment.getGid(ffr, filename);
+													boolean isSymLink = UnixFile.isSymLink(mode);
+													long modifyTime = isSymLink ? -1 : environment.getModifyTime(ffr, filename);
+													//if(modifyTime<1000 && !isSymLink && log.isWarnEnabled()) log.warn("Non-symlink modifyTime<1000: "+filename+": "+modifyTime);
+													String symLinkTarget;
+													if(isSymLink) {
+														try {
+															symLinkTarget = environment.readLink(ffr, filename);
+														} catch(SecurityException err) {
+															environment.getLogger().logp(Level.SEVERE, getClass().getName(), "backupPass", "SecurityException trying to readlink: "+filename, err);
+															throw err;
+														} catch(IOException err) {
+															environment.getLogger().logp(Level.SEVERE, getClass().getName(), "backupPass", "IOException trying to readlink: "+filename, err);
+															throw err;
+														}
+													} else {
+														symLinkTarget = null;
+													}
+													boolean isDevice = UnixFile.isBlockDevice(mode) || UnixFile.isCharacterDevice(mode);
+													long deviceID = isDevice?environment.getDeviceIdentifier(ffr, filename):-1;
+
+													out.writeBoolean(true);
+													// Adjust the filename to server formatting
+													String serverPath = environment.getServerPath(ffr, filename);
+													out.writeCompressedUTF(serverPath, 0);
+													out.writeLong(mode);
+													if(UnixFile.isRegularFile(mode)) out.writeLong(size);
+													if(uid<0 || uid>65535) {
+														environment.getLogger().logp(Level.WARNING, getClass().getName(), "backupPass", null, new IOException("UID out of range, converted to 0, uid="+uid+" and path="+filename));
+														uid = 0;
+													}
+													out.writeCompressedInt(uid);
+													if(gid<0 || gid>65535) {
+														environment.getLogger().logp(Level.WARNING, getClass().getName(), "backupPass", null, new IOException("GID out of range, converted to 0, gid="+gid+" and path="+filename));
+														gid = 0;
+													}
+													out.writeCompressedInt(gid);
+													// TODO: Once glibc >= 2.6 and kernel >= 2.6.22, can use lutimes call for symbolic links
+													if(!isSymLink) out.writeLong(modifyTime);
+													if(isSymLink) out.writeCompressedUTF(symLinkTarget, 1);
+													else if(isDevice) out.writeLong(deviceID);
+												} else {
+													filenames[d] = null;
+													out.writeBoolean(false);
+												}
+											} catch(FileNotFoundException err) {
+												// Normal because of a dynamic file system
+												filenames[d]=null;
+												out.writeBoolean(false);
+											}
+										}
+										out.flush();
+										// Recreate the compressed stream after flush because GZIPOutputStream is broken.
+										/*if(useCompression) {
+											out = new StreamableOutput(
+												new AutoFinishGZIPOutputStream(new DontCloseOutputStream(rawBytesOutStream), BufferManager.BUFFER_SIZE)
+											);
+										}*/
+										synchronized(this) {
+											if(currentThread != thread) return;
+										}
+
+										// Read the results
+										result = in.read();
+										synchronized(this) {
+											if(currentThread != thread) return;
+										}
+										boolean hasRequestData = false;
+										if(result == AOServDaemonProtocol.NEXT) {
+											for(int d = 0; d < batchSize; d++) {
+												if(filenames[d] != null) {
+													synchronized(this) {
+														if(currentThread != thread) return;
+													}
+													result = in.read();
+													results[d] = result;
+													if(result == AOServDaemonProtocol.FAILOVER_FILE_REPLICATION_MODIFIED_REQUEST_DATA) {
+														hasRequestData = true;
+													} else if(result == AOServDaemonProtocol.FAILOVER_FILE_REPLICATION_MODIFIED_REQUEST_DATA_CHUNKED) {
+														hasRequestData = true;
+														long chunkingSize = in.readLong();
+														int numChunks;
+														{
+															long numChunksL = chunkingSize >> AOServDaemonProtocol.FAILOVER_FILE_REPLICATION_CHUNK_SIZE_BITS;
+															if((chunkingSize & (AOServDaemonProtocol.FAILOVER_FILE_REPLICATION_CHUNK_SIZE-1)) != 0) numChunksL++;
+															numChunks = SafeMath.castInt(numChunksL);
+														}
+														long[] md5Hi = new long[numChunks];
+														long[] md5Lo = new long[numChunks];
+														for(int e = 0; e < numChunks; e++) {
+															md5Hi[e] = in.readLong();
+															md5Lo[e] = in.readLong();
+														}
+														chunkingSizes[d] = chunkingSize;
+														md5His[d] = md5Hi;
+														md5Los[d] = md5Lo;
+													}
+												}
+											}
+										} else {
+											if (result == AOServDaemonProtocol.IO_EXCEPTION) throw new IOException(in.readUTF());
+											else if (result == AOServDaemonProtocol.SQL_EXCEPTION) throw new SQLException(in.readUTF());
+											else throw new IOException("Unknown result: " + result);
+										}
+										synchronized(this) {
+											if(currentThread != thread) return;
+										}
+
+										// Process the results
+										//DeflaterOutputStream deflaterOut;
+										final StreamableOutput outgoing;
+
+										if(hasRequestData) {
+											//deflaterOut = null;
+											outgoing = out;
+										} else {
+											//deflaterOut = null;
+											outgoing = null;
+										}
+										for(int d = 0; d < batchSize; d++) {
+											synchronized(this) {
+												if(currentThread != thread) return;
+											}
+											String filename = filenames[d];
+											if(filename != null) {
+												result = results[d];
+												if(result == AOServDaemonProtocol.FAILOVER_FILE_REPLICATION_MODIFIED) {
+													if(isDebug) logger.logp(Level.FINE, getClass().getName(), "backupPass", (retention>1 ? "Backup: " : "Failover: ") + "File modified: "+filename);
+													updated++;
+												} else if(result == AOServDaemonProtocol.FAILOVER_FILE_REPLICATION_MODIFIED_REQUEST_DATA) {
+													assert outgoing != null;
+													updated++;
+													try {
+														if(isDebug) logger.logp(Level.FINE, getClass().getName(), "backupPass", (retention>1 ? "Backup: " : "Failover: ") + "Sending file contents: "+filename);
+														// Shortcut for 0 length files (don't open for reading)
+														if(environment.getLength(ffr, filename) != 0) {
+															try (InputStream fileIn = environment.getInputStream(ffr, filename)) {
+																// Read in full chunk size until end of file
+																// Only the last chunk may be less than a full chunk size
+																while(true) {
+																	synchronized(this) {
+																		if(currentThread != thread) return;
+																	}
+																	int pos = 0;
+																	do {
+																		int ret = fileIn.read(chunkBuffer, pos, AOServDaemonProtocol.FAILOVER_FILE_REPLICATION_CHUNK_SIZE - pos);
+																		if(ret == -1) break;
+																		pos += ret;
+																	} while(pos < AOServDaemonProtocol.FAILOVER_FILE_REPLICATION_CHUNK_SIZE);
+																	synchronized(this) {
+																		if(currentThread != thread) return;
+																	}
+																	if(pos > 0) {
+																		outgoing.write(AOServDaemonProtocol.NEXT);
+																		outgoing.writeCompressedInt(pos);
+																		outgoing.write(chunkBuffer, 0, pos);
+																	}
+																	// Check end of file
+																	if(pos < AOServDaemonProtocol.FAILOVER_FILE_REPLICATION_CHUNK_SIZE) {
+																		break;
+																	}
+																}
+															}
+														}
+													} catch(FileNotFoundException err) {
+														// Normal when the file was deleted
+													} catch(IOException e) {
+														throw new IOException("filename=" + filename, e);
+													} finally {
+														synchronized(this) {
+															if(currentThread != thread) return;
+														}
+														outgoing.write(AOServDaemonProtocol.DONE);
+													}
+												} else if(result==AOServDaemonProtocol.FAILOVER_FILE_REPLICATION_MODIFIED_REQUEST_DATA_CHUNKED) {
+													assert outgoing != null;
+													assert md5 != null;
+													updated++;
+													try {
+														if(isDebug) logger.logp(Level.FINE, getClass().getName(), "backupPass", (retention>1 ? "Backup: " : "Failover: ") + "Chunking file contents: "+filename);
+														final long[] md5Hi = md5His[d];
+														final long[] md5Lo = md5Los[d];
+														assert md5Lo.length == md5Hi.length;
+														final int numChunks = md5Hi.length;
 														try (InputStream fileIn = environment.getInputStream(ffr, filename)) {
-															// Read in full chunk size until end of file
-															// Only the last chunk may be less than a full chunk size
+															int chunkNumber = 0;
+															int sendChunkCount = 0;
 															while(true) {
 																synchronized(this) {
 																	if(currentThread != thread) return;
 																}
+																// Read fully one chunk or to end of file
 																int pos = 0;
 																do {
 																	int ret = fileIn.read(chunkBuffer, pos, AOServDaemonProtocol.FAILOVER_FILE_REPLICATION_CHUNK_SIZE - pos);
@@ -829,179 +884,131 @@ final public class BackupDaemon {
 																	if(currentThread != thread) return;
 																}
 																if(pos > 0) {
-																	outgoing.write(AOServDaemonProtocol.NEXT);
-																	outgoing.writeCompressedInt(pos);
-																	outgoing.write(chunkBuffer, 0, pos);
+																	if(chunkNumber < numChunks) {
+																		final int chunkSize;
+																		if(chunkNumber < (numChunks - 1)) {
+																			// All but last chunk must be full-sized
+																			chunkSize = AOServDaemonProtocol.FAILOVER_FILE_REPLICATION_CHUNK_SIZE;
+																		} else {
+																			assert chunkNumber == (numChunks - 1);
+																			// Last chunk may be partial
+																			chunkSize = SafeMath.castInt(chunkingSizes[d] - (((long)chunkNumber) << AOServDaemonProtocol.FAILOVER_FILE_REPLICATION_CHUNK_SIZE_BITS));
+																			assert chunkSize > 0 && chunkSize <= AOServDaemonProtocol.FAILOVER_FILE_REPLICATION_CHUNK_SIZE;
+																		}
+																		if(pos < chunkSize) {
+																			// Last chunk not fully read, just send data
+																			sendChunkCount++;
+																			outgoing.write(AOServDaemonProtocol.NEXT);
+																			outgoing.writeCompressedInt(pos);
+																			outgoing.write(chunkBuffer, 0, pos);
+																		} else {
+																			// Calculate the MD5 hash
+																			md5.Init();
+																			md5.Update(chunkBuffer, 0, chunkSize);
+																			byte[] md5Bytes = md5.Final();
+																			if(
+																				md5Hi[chunkNumber] != MD5.getMD5Hi(md5Bytes)
+																				|| md5Lo[chunkNumber] != MD5.getMD5Lo(md5Bytes)
+																			) {
+																				// MD5 mismatch, just send data
+																				sendChunkCount++;
+																				outgoing.write(AOServDaemonProtocol.NEXT);
+																				outgoing.writeCompressedInt(pos);
+																				outgoing.write(chunkBuffer, 0, pos);
+																			} else {
+																				outgoing.write(AOServDaemonProtocol.NEXT_CHUNK);
+																				// Send any beyond the last chunk (file has grown)
+																				if(pos > chunkSize) {
+																					outgoing.write(AOServDaemonProtocol.NEXT);
+																					int bytesBeyond = pos - chunkSize;
+																					outgoing.writeCompressedInt(bytesBeyond);
+																					outgoing.write(chunkBuffer, chunkSize, bytesBeyond);
+																				}
+																			}
+																		}
+																	} else {
+																		// Chunk past those sent from server
+																		outgoing.write(AOServDaemonProtocol.NEXT);
+																		outgoing.writeCompressedInt(pos);
+																		outgoing.write(chunkBuffer, 0, pos);
+																	}
+																	// Increment chunk number for next iteration
+																	chunkNumber++;
 																}
 																// Check end of file
 																if(pos < AOServDaemonProtocol.FAILOVER_FILE_REPLICATION_CHUNK_SIZE) {
 																	break;
 																}
 															}
+															if(isDebug) logger.logp(Level.FINE, getClass().getName(), "backupPass", (retention>1 ? "Backup: " : "Failover: ") + "Chunking file contents: "+filename+": Sent "+sendChunkCount+" out of "+chunkNumber+" chunks");
 														}
-													}
-												} catch(FileNotFoundException err) {
-													// Normal when the file was deleted
-												} catch(IOException e) {
-													throw new IOException("filename=" + filename, e);
-												} finally {
-													synchronized(this) {
-														if(currentThread != thread) return;
-													}
-													outgoing.write(AOServDaemonProtocol.DONE);
-												}
-											} else if(result==AOServDaemonProtocol.FAILOVER_FILE_REPLICATION_MODIFIED_REQUEST_DATA_CHUNKED) {
-												assert outgoing != null;
-												assert md5 != null;
-												updated++;
-												try {
-													if(isDebug) logger.logp(Level.FINE, getClass().getName(), "backupPass", (retention>1 ? "Backup: " : "Failover: ") + "Chunking file contents: "+filename);
-													final long[] md5Hi = md5His[d];
-													final long[] md5Lo = md5Los[d];
-													assert md5Lo.length == md5Hi.length;
-													final int numChunks = md5Hi.length;
-													try (InputStream fileIn = environment.getInputStream(ffr, filename)) {
-														int chunkNumber = 0;
-														int sendChunkCount = 0;
-														while(true) {
-															synchronized(this) {
-																if(currentThread != thread) return;
-															}
-															// Read fully one chunk or to end of file
-															int pos = 0;
-															do {
-																int ret = fileIn.read(chunkBuffer, pos, AOServDaemonProtocol.FAILOVER_FILE_REPLICATION_CHUNK_SIZE - pos);
-																if(ret == -1) break;
-																pos += ret;
-															} while(pos < AOServDaemonProtocol.FAILOVER_FILE_REPLICATION_CHUNK_SIZE);
-															synchronized(this) {
-																if(currentThread != thread) return;
-															}
-															if(pos > 0) {
-																if(chunkNumber < numChunks) {
-																	final int chunkSize;
-																	if(chunkNumber < (numChunks - 1)) {
-																		// All but last chunk must be full-sized
-																		chunkSize = AOServDaemonProtocol.FAILOVER_FILE_REPLICATION_CHUNK_SIZE;
-																	} else {
-																		assert chunkNumber == (numChunks - 1);
-																		// Last chunk may be partial
-																		chunkSize = SafeMath.castInt(chunkingSizes[d] - (((long)chunkNumber) << AOServDaemonProtocol.FAILOVER_FILE_REPLICATION_CHUNK_SIZE_BITS));
-																		assert chunkSize > 0 && chunkSize <= AOServDaemonProtocol.FAILOVER_FILE_REPLICATION_CHUNK_SIZE;
-																	}
-																	if(pos < chunkSize) {
-																		// Last chunk not fully read, just send data
-																		sendChunkCount++;
-																		outgoing.write(AOServDaemonProtocol.NEXT);
-																		outgoing.writeCompressedInt(pos);
-																		outgoing.write(chunkBuffer, 0, pos);
-																	} else {
-																		// Calculate the MD5 hash
-																		md5.Init();
-																		md5.Update(chunkBuffer, 0, chunkSize);
-																		byte[] md5Bytes = md5.Final();
-																		if(
-																			md5Hi[chunkNumber] != MD5.getMD5Hi(md5Bytes)
-																			|| md5Lo[chunkNumber] != MD5.getMD5Lo(md5Bytes)
-																		) {
-																			// MD5 mismatch, just send data
-																			sendChunkCount++;
-																			outgoing.write(AOServDaemonProtocol.NEXT);
-																			outgoing.writeCompressedInt(pos);
-																			outgoing.write(chunkBuffer, 0, pos);
-																		} else {
-																			outgoing.write(AOServDaemonProtocol.NEXT_CHUNK);
-																			// Send any beyond the last chunk (file has grown)
-																			if(pos > chunkSize) {
-																				outgoing.write(AOServDaemonProtocol.NEXT);
-																				int bytesBeyond = pos - chunkSize;
-																				outgoing.writeCompressedInt(bytesBeyond);
-																				outgoing.write(chunkBuffer, chunkSize, bytesBeyond);
-																			}
-																		}
-																	}
-																} else {
-																	// Chunk past those sent from server
-																	outgoing.write(AOServDaemonProtocol.NEXT);
-																	outgoing.writeCompressedInt(pos);
-																	outgoing.write(chunkBuffer, 0, pos);
-																}
-																// Increment chunk number for next iteration
-																chunkNumber++;
-															}
-															// Check end of file
-															if(pos < AOServDaemonProtocol.FAILOVER_FILE_REPLICATION_CHUNK_SIZE) {
-																break;
-															}
+													} catch(FileNotFoundException err) {
+														// Normal when the file was deleted
+													} catch(IOException e) {
+														throw new IOException("filename=" + filename, e);
+													} finally {
+														synchronized(this) {
+															if(currentThread != thread) return;
 														}
-														if(isDebug) logger.logp(Level.FINE, getClass().getName(), "backupPass", (retention>1 ? "Backup: " : "Failover: ") + "Chunking file contents: "+filename+": Sent "+sendChunkCount+" out of "+chunkNumber+" chunks");
+														outgoing.write(AOServDaemonProtocol.DONE);
 													}
-												} catch(FileNotFoundException err) {
-													// Normal when the file was deleted
-												} catch(IOException e) {
-													throw new IOException("filename=" + filename, e);
-												} finally {
-													synchronized(this) {
-														if(currentThread != thread) return;
-													}
-													outgoing.write(AOServDaemonProtocol.DONE);
-												}
-											} else if(result != AOServDaemonProtocol.FAILOVER_FILE_REPLICATION_NO_CHANGE) throw new IOException("Unknown result: "+result);
+												} else if(result != AOServDaemonProtocol.FAILOVER_FILE_REPLICATION_NO_CHANGE) throw new IOException("Unknown result: "+result);
+											}
+										}
+
+										// Flush any file data that was sent
+										if(hasRequestData) {
+											assert outgoing != null;
+											synchronized(this) {
+												if(currentThread != thread) return;
+											}
+											outgoing.flush();
 										}
 									}
 
-									// Flush any file data that was sent
-									if(hasRequestData) {
-										assert outgoing != null;
-										synchronized(this) {
-											if(currentThread != thread) return;
+									// Error now if not all required have been found
+									if(!remainingRequiredFilenames.isEmpty()) {
+										StringBuilder message = new StringBuilder("Required files not found.  Successfully sent all found, but not flagging the backup as successful because the following files were missing:");
+										for(String filename : remainingRequiredFilenames) {
+											message.append('\n').append(filename);
 										}
-										outgoing.flush();
+										throw new IOException(message.toString());
 									}
-								}
-
-								// Error now if not all required have been found
-								if(!remainingRequiredFilenames.isEmpty()) {
-									StringBuilder message = new StringBuilder("Required files not found.  Successfully sent all found, but not flagging the backup as successful because the following files were missing:");
-									for(String filename : remainingRequiredFilenames) {
-										message.append('\n').append(filename);
+									// Tell the server we are finished
+									synchronized(this) {
+										if(currentThread != thread) return;
 									}
-									throw new IOException(message.toString());
+									out.writeCompressedInt(-1);
+									out.flush();
+									// Recreate the compressed stream after flush because GZIPOutputStream is broken.
+									/*if(useCompression) {
+										out = new StreamableOutput(
+											new AutoFinishGZIPOutputStream(new DontCloseOutputStream(rawBytesOutStream), BufferManager.BUFFER_SIZE)
+										);
+									}*/
+									synchronized(this) {
+										if(currentThread != thread) return;
+									}
+									result=in.read();
+									if(result!=AOServDaemonProtocol.DONE) {
+										if (result == AOServDaemonProtocol.IO_EXCEPTION) throw new IOException(in.readUTF());
+										else if (result == AOServDaemonProtocol.SQL_EXCEPTION) throw new SQLException(in.readUTF());
+										else throw new IOException("Unknown result: " + result);
+									}
+								} finally {
+									// Store the bytes transferred
+									rawBytesOut=rawBytesOutStream.getCount();
+									rawBytesIn=rawBytesInStream.getCount();
 								}
-								// Tell the server we are finished
-								synchronized(this) {
-									if(currentThread != thread) return;
-								}
-								out.writeCompressedInt(-1);
-								out.flush();
-								// Recreate the compressed stream after flush because GZIPOutputStream is broken.
-								/*if(useCompression) {
-									out = new StreamableOutput(
-										new AutoFinishGZIPOutputStream(new DontCloseOutputStream(rawBytesOutStream), BufferManager.BUFFER_SIZE)
-									);
-								}*/
-								synchronized(this) {
-									if(currentThread != thread) return;
-								}
-								result=in.read();
-								if(result!=AOServDaemonProtocol.DONE) {
-									if (result == AOServDaemonProtocol.IO_EXCEPTION) throw new IOException(in.readUTF());
-									else if (result == AOServDaemonProtocol.SQL_EXCEPTION) throw new SQLException(in.readUTF());
-									else throw new IOException("Unknown result: " + result);
-								}
-							} finally {
-								// Store the bytes transferred
-								rawBytesOut=rawBytesOutStream.getCount();
-								rawBytesIn=rawBytesInStream.getCount();
+							} else {
+								if (result == AOServDaemonProtocol.IO_EXCEPTION) throw new IOException(rawIn.readUTF());
+								else if (result == AOServDaemonProtocol.SQL_EXCEPTION) throw new SQLException(rawIn.readUTF());
+								else throw new IOException("Unknown result: " + result);
 							}
-						} else {
-							if (result == AOServDaemonProtocol.IO_EXCEPTION) throw new IOException(rawIn.readUTF());
-							else if (result == AOServDaemonProtocol.SQL_EXCEPTION) throw new SQLException(rawIn.readUTF());
-							else throw new IOException("Unknown result: " + result);
+						} finally {
+							// Always close after file replication since this is a connection-terminal command
+							daemonConn.abort();
 						}
-					} finally {
-						daemonConn.close(); // Always close to minimize connections on server and handle stop interruption causing interrupted protocol
-						daemonConnector.releaseConnection(daemonConn);
 					}
 					isSuccessful = true;
 				} finally {
@@ -1011,11 +1018,13 @@ final public class BackupDaemon {
 						try {
 							ffr.addFailoverFileLog(startTime, System.currentTimeMillis(), scanned, updated, rawBytesOut+rawBytesIn, isSuccessful);
 							break;
-						} catch(RuntimeException err) {
+						} catch(ThreadDeath td) {
+							throw td;
+						} catch(Throwable t) {
 							if(c >= 10) {
-								environment.getLogger().logp(Level.SEVERE, getClass().getName(), "backupPass", "Error adding failover file log, giving up", err);
+								environment.getLogger().logp(Level.SEVERE, getClass().getName(), "backupPass", "Error adding failover file log, giving up", t);
 							} else {
-								environment.getLogger().logp(Level.SEVERE, getClass().getName(), "backupPass", "Error adding failover file log, will retry in one minute", err);
+								environment.getLogger().logp(Level.SEVERE, getClass().getName(), "backupPass", "Error adding failover file log, will retry in one minute", t);
 								try {
 									Thread.sleep(60*1000);
 								} catch(InterruptedException err2) {
@@ -1067,11 +1076,11 @@ final public class BackupDaemon {
 					BackupDaemon daemon = new BackupDaemon(environment);
 					daemon.start();
 					done=true;
-				} catch (ThreadDeath TD) {
-					throw TD;
-				} catch (RuntimeException | IOException | SQLException T) {
+				} catch (ThreadDeath td) {
+					throw td;
+				} catch (Throwable t) {
 					Logger logger = environment.getLogger();
-					logger.logp(Level.SEVERE, BackupDaemon.class.getName(), "main", null, T);
+					logger.logp(Level.SEVERE, BackupDaemon.class.getName(), "main", null, t);
 					try {
 						Thread.sleep(60000);
 					} catch(InterruptedException err) {
