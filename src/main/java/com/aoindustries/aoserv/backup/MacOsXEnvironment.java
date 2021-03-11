@@ -1,6 +1,6 @@
 /*
  * aoserv-backup - Backup client for the AOServ Platform.
- * Copyright (C) 2008, 2009, 2018, 2019  AO Industries, Inc.
+ * Copyright (C) 2008, 2009, 2018, 2019, 2021  AO Industries, Inc.
  *     support@aoindustries.com
  *     7262 Bull Pen Cir
  *     Mobile, AL 36695
@@ -35,14 +35,14 @@ import java.util.Map;
 abstract public class MacOsXEnvironment extends FileEnvironment {
 
 	@Override
-	protected Map<String,FilesystemIteratorRule> getFilesystemIteratorRules(FileReplication ffr) throws IOException, SQLException {
-		Map<String,FilesystemIteratorRule> filesystemRules = new HashMap<>();
+	protected Map<String, FilesystemIteratorRule> getFilesystemIteratorRules(FileReplication ffr) throws IOException, SQLException {
+		Map<String, FilesystemIteratorRule> filesystemRules = new HashMap<>();
 		return filesystemRules;
 	}
 
 	@Override
-	protected Map<String,FilesystemIteratorRule> getFilesystemIteratorPrefixRules(FileReplication ffr) throws IOException, SQLException {
-		Map<String,FilesystemIteratorRule> filesystemPrefixRules = new HashMap<>();
+	protected Map<String, FilesystemIteratorRule> getFilesystemIteratorPrefixRules(FileReplication ffr) throws IOException, SQLException {
+		Map<String, FilesystemIteratorRule> filesystemPrefixRules = new HashMap<>();
 		return filesystemPrefixRules;
 	}
 }

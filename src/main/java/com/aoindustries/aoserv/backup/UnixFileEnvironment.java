@@ -1,6 +1,6 @@
 /*
  * aoserv-backup - Backup client for the AOServ Platform.
- * Copyright (C) 2003-2009, 2018, 2019, 2020  AO Industries, Inc.
+ * Copyright (C) 2003-2009, 2018, 2019, 2020, 2021  AO Industries, Inc.
  *     support@aoindustries.com
  *     7262 Bull Pen Cir
  *     Mobile, AL 36695
@@ -43,9 +43,9 @@ import java.util.Map;
 abstract public class UnixFileEnvironment extends FileEnvironment {
 
 	private final Object unixFileCacheLock=new Object();
-	private final Map<FileReplication,File> lastFiles = new HashMap<>();
-	private final Map<FileReplication,UnixFile> lastUnixFiles = new HashMap<>();
-	private final Map<FileReplication,Stat> lastStats = new HashMap<>();
+	private final Map<FileReplication, File> lastFiles = new HashMap<>();
+	private final Map<FileReplication, UnixFile> lastUnixFiles = new HashMap<>();
+	private final Map<FileReplication, Stat> lastStats = new HashMap<>();
 
 	protected UnixFile getUnixFile(FileReplication ffr, String filename) throws IOException {
 		File file = getFile(ffr, filename);

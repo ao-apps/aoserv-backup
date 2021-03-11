@@ -1,6 +1,6 @@
 /*
  * aoserv-backup - Backup client for the AOServ Platform.
- * Copyright (C) 2001-2013, 2015, 2016, 2017, 2018, 2019, 2020  AO Industries, Inc.
+ * Copyright (C) 2001-2013, 2015, 2016, 2017, 2018, 2019, 2020, 2021  AO Industries, Inc.
  *     support@aoindustries.com
  *     7262 Bull Pen Cir
  *     Mobile, AL 36695
@@ -78,7 +78,7 @@ final public class BackupDaemon {
 	final private BackupEnvironment environment;
 
 	private boolean isStarted = false;
-	final private Map<FileReplication,BackupDaemonThread> threads = new HashMap<>();
+	final private Map<FileReplication, BackupDaemonThread> threads = new HashMap<>();
 
 	public BackupDaemon(BackupEnvironment environment) {
 		this.environment=environment;
@@ -171,12 +171,12 @@ final public class BackupDaemon {
 			Logger logger = environment.getLogger();
 			boolean isDebug = logger.isLoggable(Level.FINE);
 			// Stop each thread
-			for(Map.Entry<FileReplication,BackupDaemonThread> entry : threads.entrySet()) {
+			for(Map.Entry<FileReplication, BackupDaemonThread> entry : threads.entrySet()) {
 				if(isDebug) logger.logp(Level.FINE, getClass().getName(), "stop", "Stopping BackupDaemonThread for "+entry.getKey());
 				entry.getValue().stop();
 			}
 			// Join each thread (wait for actual stop)
-			for(Map.Entry<FileReplication,BackupDaemonThread> entry : threads.entrySet()) {
+			for(Map.Entry<FileReplication, BackupDaemonThread> entry : threads.entrySet()) {
 				if(isDebug) logger.logp(Level.FINE, getClass().getName(), "stop", "Joining BackupDaemonThread for "+entry.getKey());
 				try {
 					entry.getValue().join();

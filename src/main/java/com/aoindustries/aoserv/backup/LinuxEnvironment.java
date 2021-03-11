@@ -1,6 +1,6 @@
 /*
  * aoserv-backup - Backup client for the AOServ Platform.
- * Copyright (C) 2008, 2009, 2018, 2019  AO Industries, Inc.
+ * Copyright (C) 2008, 2009, 2018, 2019, 2021  AO Industries, Inc.
  *     support@aoindustries.com
  *     7262 Bull Pen Cir
  *     Mobile, AL 36695
@@ -38,8 +38,8 @@ import java.util.Map;
 abstract public class LinuxEnvironment extends UnixFileEnvironment {
 
 	@Override
-	protected Map<String,FilesystemIteratorRule> getFilesystemIteratorRules(FileReplication ffr) throws IOException, SQLException {
-		Map<String,FilesystemIteratorRule> filesystemRules = new HashMap<>();
+	protected Map<String, FilesystemIteratorRule> getFilesystemIteratorRules(FileReplication ffr) throws IOException, SQLException {
+		Map<String, FilesystemIteratorRule> filesystemRules = new HashMap<>();
 		filesystemRules.put("/dev/log", FilesystemIteratorRule.SKIP);
 		filesystemRules.put("/dev/pts/", FilesystemIteratorRule.SKIP);
 		filesystemRules.put("/dev/shm/", FilesystemIteratorRule.SKIP);
@@ -50,8 +50,8 @@ abstract public class LinuxEnvironment extends UnixFileEnvironment {
 	}
 
 	@Override
-	protected Map<String,FilesystemIteratorRule> getFilesystemIteratorPrefixRules(FileReplication ffr) throws IOException, SQLException {
-		Map<String,FilesystemIteratorRule> filesystemPrefixRules = new HashMap<>();
+	protected Map<String, FilesystemIteratorRule> getFilesystemIteratorPrefixRules(FileReplication ffr) throws IOException, SQLException {
+		Map<String, FilesystemIteratorRule> filesystemPrefixRules = new HashMap<>();
 		return filesystemPrefixRules;
 	}
 }

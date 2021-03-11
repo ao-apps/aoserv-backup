@@ -1,6 +1,6 @@
 /*
  * aoserv-backup - Backup client for the AOServ Platform.
- * Copyright (C) 2003-2013, 2017, 2018, 2019, 2020  AO Industries, Inc.
+ * Copyright (C) 2003-2013, 2017, 2018, 2019, 2020, 2021  AO Industries, Inc.
  *     support@aoindustries.com
  *     7262 Bull Pen Cir
  *     Mobile, AL 36695
@@ -52,8 +52,8 @@ import java.util.Set;
 abstract public class FileEnvironment implements BackupEnvironment {
 
 	private final Object fileCacheLock=new Object();
-	private final Map<FileReplication,String> lastFilenames = new HashMap<>();
-	private final Map<FileReplication,File> lastFiles = new HashMap<>();
+	private final Map<FileReplication, String> lastFilenames = new HashMap<>();
+	private final Map<FileReplication, File> lastFiles = new HashMap<>();
 
 	protected File getFile(FileReplication ffr, String filename) {
 		if(filename==null) throw new AssertionError("filename is null");
@@ -165,8 +165,8 @@ abstract public class FileEnvironment implements BackupEnvironment {
 	@Override
 	public Iterator<String> getFilenameIterator(FileReplication ffr) throws IOException, SQLException {
 		// Build the skip list
-		Map<String,FilesystemIteratorRule> filesystemRules = getFilesystemIteratorRules(ffr);
-		Map<String,FilesystemIteratorRule> filesystemPrefixRules = getFilesystemIteratorPrefixRules(ffr);
+		Map<String, FilesystemIteratorRule> filesystemRules = getFilesystemIteratorRules(ffr);
+		Map<String, FilesystemIteratorRule> filesystemPrefixRules = getFilesystemIteratorPrefixRules(ffr);
 
 		for(FileReplicationSetting setting : ffr.getFileBackupSettings()) {
 			filesystemRules.put(
@@ -184,12 +184,12 @@ abstract public class FileEnvironment implements BackupEnvironment {
 	 * values returned here.  The returned map may be modified, to maintain
 	 * internal consistency, return a copy of the map if needed.
 	 */
-	protected abstract Map<String,FilesystemIteratorRule> getFilesystemIteratorRules(FileReplication ffr) throws IOException, SQLException;
+	protected abstract Map<String, FilesystemIteratorRule> getFilesystemIteratorRules(FileReplication ffr) throws IOException, SQLException;
 
 	/**
 	 * Gets the default set of filesystem prefix rules for this environment.
 	 */
-	protected abstract Map<String,FilesystemIteratorRule> getFilesystemIteratorPrefixRules(FileReplication ffr) throws IOException, SQLException;
+	protected abstract Map<String, FilesystemIteratorRule> getFilesystemIteratorPrefixRules(FileReplication ffr) throws IOException, SQLException;
 
 	@Override
 	public InetAddress getDefaultSourceIPAddress() throws IOException, SQLException {
