@@ -67,6 +67,7 @@ import java.util.Random;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.zip.GZIPOutputStream;
 
 /**
  * The <code>FailoverFileReplicationDaemon</code> runs on every server that is backed-up.
@@ -653,9 +654,10 @@ final public class BackupDaemon {
 									)
 								);
 								final StreamableOutput out = new StreamableOutput(
-									/*useCompression
-									? new AutoFinishGZIPOutputStream(new DontCloseOutputStream(rawBytesOutStream), BufferManager.BUFFER_SIZE)
-									:*/ rawBytesOutStream
+									useCompression && daemonConn.getProtocolVersion().compareTo(AOServDaemonProtocol.Version.VERSION_1_84_19) >= 0
+									? new GZIPOutputStream(rawBytesOutStream, AOServDaemonProtocol.FAILOVER_FILE_REPLICATION_GZIP_BUFFER_SIZE, true)
+									// ? new AutoFinishGZIPOutputStream(new DontCloseOutputStream(rawBytesOutStream), BufferManager.BUFFER_SIZE)
+									: rawBytesOutStream
 								);
 
 								final ByteCountInputStream rawBytesInStream = new ByteCountInputStream(rawIn);
@@ -880,6 +882,7 @@ final public class BackupDaemon {
 																	if(currentThread != thread) return;
 																}
 																// Read fully one chunk or to end of file
+																// Java 9: readNBytes
 																int pos = 0;
 																do {
 																	int ret = fileIn.read(chunkBuffer, pos, AOServDaemonProtocol.FAILOVER_FILE_REPLICATION_CHUNK_SIZE - pos);
