@@ -1,6 +1,6 @@
 /*
  * aoserv-backup - Backup client for the AOServ Platform.
- * Copyright (C) 2003-2013, 2017, 2018, 2019  AO Industries, Inc.
+ * Copyright (C) 2003-2013, 2017, 2018, 2019, 2021  AO Industries, Inc.
  *     support@aoindustries.com
  *     7262 Bull Pen Cir
  *     Mobile, AL 36695
@@ -22,11 +22,11 @@
  */
 package com.aoindustries.aoserv.backup;
 
+import com.aoapps.net.InetAddress;
 import com.aoindustries.aoserv.client.AOServConnector;
 import com.aoindustries.aoserv.client.backup.FileReplication;
 import com.aoindustries.aoserv.client.mysql.Server;
 import com.aoindustries.aoserv.client.net.Host;
-import com.aoindustries.net.InetAddress;
 import java.io.IOException;
 import java.io.InputStream;
 import java.sql.SQLException;

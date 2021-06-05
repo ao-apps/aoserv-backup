@@ -22,10 +22,10 @@
  */
 package com.aoindustries.aoserv.backup;
 
+import com.aoapps.io.posix.PosixFile;
+import com.aoapps.io.posix.Stat;
 import com.aoindustries.aoserv.client.backup.FileReplication;
 import com.aoindustries.aoserv.client.net.Host;
-import com.aoindustries.io.unix.Stat;
-import com.aoindustries.io.unix.UnixFile;
 import java.io.File;
 import java.io.IOException;
 import java.sql.SQLException;
@@ -33,33 +33,33 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * A <code>UnixEnvironment</code> controls the backup system on
- * a standalone Unix <code>Host</code>.
+ * A <code>PosixEnvironment</code> controls the backup system on
+ * a standalone Posix <code>Host</code>.
  *
  * @see  Host
  *
  * @author  AO Industries, Inc.
  */
-abstract public class UnixFileEnvironment extends FileEnvironment {
+abstract public class PosixFileEnvironment extends FileEnvironment {
 
 	private final Object unixFileCacheLock=new Object();
 	private final Map<FileReplication, File> lastFiles = new HashMap<>();
-	private final Map<FileReplication, UnixFile> lastUnixFiles = new HashMap<>();
+	private final Map<FileReplication, PosixFile> lastPosixFiles = new HashMap<>();
 	private final Map<FileReplication, Stat> lastStats = new HashMap<>();
 
-	protected UnixFile getUnixFile(FileReplication ffr, String filename) throws IOException {
+	protected PosixFile getPosixFile(FileReplication ffr, String filename) throws IOException {
 		File file = getFile(ffr, filename);
 		synchronized(unixFileCacheLock) {
-			UnixFile lastUnixFile;
+			PosixFile lastPosixFile;
 			if(file!=lastFiles.get(ffr)) {
-				lastUnixFile = new UnixFile(file);
-				lastUnixFiles.put(ffr, lastUnixFile);
-				lastStats.put(ffr, lastUnixFile.getStat());
+				lastPosixFile = new PosixFile(file);
+				lastPosixFiles.put(ffr, lastPosixFile);
+				lastStats.put(ffr, lastPosixFile.getStat());
 				lastFiles.put(ffr, file);
 			} else {
-				lastUnixFile = lastUnixFiles.get(ffr);
+				lastPosixFile = lastPosixFiles.get(ffr);
 			}
-			return lastUnixFile;
+			return lastPosixFile;
 		}
 	}
 
@@ -70,9 +70,9 @@ abstract public class UnixFileEnvironment extends FileEnvironment {
 		synchronized(unixFileCacheLock) {
 			Stat lastStat;
 			if(file!=lastFiles.get(ffr)) {
-				UnixFile lastUnixFile = new UnixFile(file);
-				lastUnixFiles.put(ffr, lastUnixFile);
-				lastStat = lastUnixFile.getStat();
+				PosixFile lastPosixFile = new PosixFile(file);
+				lastPosixFiles.put(ffr, lastPosixFile);
+				lastStat = lastPosixFile.getStat();
 				lastStats.put(ffr, lastStat);
 				lastFiles.put(ffr, file);
 			} else {
@@ -109,7 +109,7 @@ abstract public class UnixFileEnvironment extends FileEnvironment {
 
 	@Override
 	public String readLink(FileReplication ffr, String filename) throws IOException {
-		return getUnixFile(ffr, filename).readLink();
+		return getPosixFile(ffr, filename).readLink();
 	}
 
 	@Override
@@ -122,7 +122,7 @@ abstract public class UnixFileEnvironment extends FileEnvironment {
 		try {
 			synchronized(unixFileCacheLock) {
 				lastFiles.remove(ffr);
-				lastUnixFiles.remove(ffr);
+				lastPosixFiles.remove(ffr);
 				lastStats.remove(ffr);
 			}
 		} finally {

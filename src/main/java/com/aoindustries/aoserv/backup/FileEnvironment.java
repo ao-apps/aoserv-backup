@@ -22,14 +22,14 @@
  */
 package com.aoindustries.aoserv.backup;
 
+import com.aoapps.hodgepodge.io.FilesystemIterator;
+import com.aoapps.hodgepodge.io.FilesystemIteratorRule;
+import com.aoapps.io.posix.PosixFile;
+import com.aoapps.net.InetAddress;
 import com.aoindustries.aoserv.client.AOServConnector;
 import com.aoindustries.aoserv.client.backup.FileReplication;
 import com.aoindustries.aoserv.client.backup.FileReplicationSetting;
 import com.aoindustries.aoserv.client.mysql.Server;
-import com.aoindustries.io.FilesystemIterator;
-import com.aoindustries.io.FilesystemIteratorRule;
-import com.aoindustries.io.unix.UnixFile;
-import com.aoindustries.net.InetAddress;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -73,8 +73,8 @@ abstract public class FileEnvironment implements BackupEnvironment {
 	@Override
 	public long getStatMode(FileReplication ffr, String filename) throws IOException {
 		File file=getFile(ffr, filename);
-		if(file.isDirectory()) return UnixFile.IS_DIRECTORY|0750;
-		if(file.isFile()) return UnixFile.IS_REGULAR_FILE|0640;
+		if(file.isDirectory()) return PosixFile.IS_DIRECTORY|0750;
+		if(file.isFile()) return PosixFile.IS_REGULAR_FILE|0640;
 		return 0;
 	}
 
@@ -85,12 +85,12 @@ abstract public class FileEnvironment implements BackupEnvironment {
 
 	@Override
 	public int getUid(FileReplication ffr, String filename) throws IOException {
-		return UnixFile.ROOT_UID;
+		return PosixFile.ROOT_UID;
 	}
 
 	@Override
 	public int getGid(FileReplication ffr, String filename) throws IOException {
-		return UnixFile.ROOT_GID;
+		return PosixFile.ROOT_GID;
 	}
 
 	@Override

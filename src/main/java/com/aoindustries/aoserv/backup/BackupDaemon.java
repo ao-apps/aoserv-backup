@@ -22,6 +22,22 @@
  */
 package com.aoindustries.aoserv.backup;
 
+import com.aoapps.hodgepodge.io.AOPool;
+import com.aoapps.hodgepodge.io.BitRateOutputStream;
+import com.aoapps.hodgepodge.io.BitRateProvider;
+import com.aoapps.hodgepodge.io.ByteCountInputStream;
+import com.aoapps.hodgepodge.io.ByteCountOutputStream;
+import com.aoapps.hodgepodge.io.TerminalWriter;
+import com.aoapps.hodgepodge.io.stream.StreamableInput;
+import com.aoapps.hodgepodge.io.stream.StreamableOutput;
+import com.aoapps.hodgepodge.md5.MD5;
+import com.aoapps.hodgepodge.table.Table;
+import com.aoapps.hodgepodge.table.TableListener;
+import com.aoapps.io.posix.PosixFile;
+import com.aoapps.lang.math.SafeMath;
+import com.aoapps.lang.util.ErrorPrinter;
+import com.aoapps.net.InetAddress;
+import com.aoapps.sql.SQLUtility;
 import com.aoindustries.aoserv.client.AOServClientConfiguration;
 import com.aoindustries.aoserv.client.AOServConnector;
 import com.aoindustries.aoserv.client.backup.FileReplication;
@@ -32,22 +48,6 @@ import com.aoindustries.aoserv.client.net.Host;
 import com.aoindustries.aoserv.daemon.client.AOServDaemonConnection;
 import com.aoindustries.aoserv.daemon.client.AOServDaemonConnector;
 import com.aoindustries.aoserv.daemon.client.AOServDaemonProtocol;
-import com.aoindustries.io.AOPool;
-import com.aoindustries.io.BitRateOutputStream;
-import com.aoindustries.io.BitRateProvider;
-import com.aoindustries.io.ByteCountInputStream;
-import com.aoindustries.io.ByteCountOutputStream;
-import com.aoindustries.io.TerminalWriter;
-import com.aoindustries.io.stream.StreamableInput;
-import com.aoindustries.io.stream.StreamableOutput;
-import com.aoindustries.io.unix.UnixFile;
-import com.aoindustries.math.SafeMath;
-import com.aoindustries.md5.MD5;
-import com.aoindustries.net.InetAddress;
-import com.aoindustries.sql.SQLUtility;
-import com.aoindustries.table.Table;
-import com.aoindustries.table.TableListener;
-import com.aoindustries.util.ErrorPrinter;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -685,13 +685,13 @@ final public class BackupDaemon {
 											String filename = filenames[d];
 											try {
 												long mode = environment.getStatMode(ffr, filename);
-												if(!UnixFile.isSocket(mode)) {
+												if(!PosixFile.isSocket(mode)) {
 													// Get all the values first to avoid FileNotFoundException in middle of protocol
-													boolean isRegularFile = UnixFile.isRegularFile(mode);
+													boolean isRegularFile = PosixFile.isRegularFile(mode);
 													long size = isRegularFile ? environment.getLength(ffr, filename) : -1;
 													int uid = environment.getUid(ffr, filename);
 													int gid = environment.getGid(ffr, filename);
-													boolean isSymLink = UnixFile.isSymLink(mode);
+													boolean isSymLink = PosixFile.isSymLink(mode);
 													long modifyTime = isSymLink ? -1 : environment.getModifyTime(ffr, filename);
 													//if(modifyTime<1000 && !isSymLink && log.isWarnEnabled()) log.warn("Non-symlink modifyTime<1000: "+filename+": "+modifyTime);
 													String symLinkTarget;
@@ -708,7 +708,7 @@ final public class BackupDaemon {
 													} else {
 														symLinkTarget = null;
 													}
-													boolean isDevice = UnixFile.isBlockDevice(mode) || UnixFile.isCharacterDevice(mode);
+													boolean isDevice = PosixFile.isBlockDevice(mode) || PosixFile.isCharacterDevice(mode);
 													long deviceID = isDevice?environment.getDeviceIdentifier(ffr, filename):-1;
 
 													out.writeBoolean(true);
@@ -716,7 +716,7 @@ final public class BackupDaemon {
 													String serverPath = environment.getServerPath(ffr, filename);
 													out.writeCompressedUTF(serverPath, 0);
 													out.writeLong(mode);
-													if(UnixFile.isRegularFile(mode)) out.writeLong(size);
+													if(PosixFile.isRegularFile(mode)) out.writeLong(size);
 													if(uid<0 || uid>65535) {
 														environment.getLogger().logp(Level.WARNING, getClass().getName(), "backupPass", null, new IOException("UID out of range, converted to 0, uid="+uid+" and path="+filename));
 														uid = 0;

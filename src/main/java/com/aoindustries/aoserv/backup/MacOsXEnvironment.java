@@ -22,8 +22,8 @@
  */
 package com.aoindustries.aoserv.backup;
 
+import com.aoapps.hodgepodge.io.FilesystemIteratorRule;
 import com.aoindustries.aoserv.client.backup.FileReplication;
-import com.aoindustries.io.FilesystemIteratorRule;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.util.HashMap;

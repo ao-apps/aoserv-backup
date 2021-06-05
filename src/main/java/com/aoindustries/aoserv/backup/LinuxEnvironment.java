@@ -22,20 +22,20 @@
  */
 package com.aoindustries.aoserv.backup;
 
+import com.aoapps.hodgepodge.io.FilesystemIteratorRule;
 import com.aoindustries.aoserv.client.backup.FileReplication;
-import com.aoindustries.io.FilesystemIteratorRule;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
 
 /**
- * A <code>LinuxEnvironment</code> extends <code>UnixFileEnvironment</code> to
+ * A <code>LinuxEnvironment</code> extends <code>PosixFileEnvironment</code> to
  * have some default exclusions, such as <code>/proc/</code>.
  *
  * @author  AO Industries, Inc.
  */
-abstract public class LinuxEnvironment extends UnixFileEnvironment {
+abstract public class LinuxEnvironment extends PosixFileEnvironment {
 
 	@Override
 	protected Map<String, FilesystemIteratorRule> getFilesystemIteratorRules(FileReplication ffr) throws IOException, SQLException {
