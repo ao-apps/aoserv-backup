@@ -49,7 +49,7 @@ import java.util.Set;
  *
  * @author  AO Industries, Inc.
  */
-abstract public class FileEnvironment implements BackupEnvironment {
+public abstract class FileEnvironment implements BackupEnvironment {
 
 	private final Object fileCacheLock=new Object();
 	private final Map<FileReplication, String> lastFilenames = new HashMap<>();

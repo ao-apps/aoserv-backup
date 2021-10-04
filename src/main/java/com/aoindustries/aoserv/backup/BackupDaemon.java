@@ -74,18 +74,18 @@ import java.util.zip.GZIPOutputStream;
  *
  * @author  AO Industries, Inc.
  */
-final public class BackupDaemon {
+public final class BackupDaemon {
 
-	final private BackupEnvironment environment;
+	private final BackupEnvironment environment;
 
 	private boolean isStarted = false;
-	final private Map<FileReplication, BackupDaemonThread> threads = new HashMap<>();
+	private final Map<FileReplication, BackupDaemonThread> threads = new HashMap<>();
 
 	public BackupDaemon(BackupEnvironment environment) {
 		this.environment=environment;
 	}
 
-	final private TableListener tableListener = new TableListener() {
+	private final TableListener tableListener = new TableListener() {
 		@Override
 		public void tableUpdated(Table<?> table) {
 			try {
@@ -100,7 +100,7 @@ final public class BackupDaemon {
 	 * Starts the backup daemon (as one thread per FileReplication.
 	 */
 	@SuppressWarnings({"UseSpecificCatch", "TooBroadCatch", "SleepWhileInLoop", "SleepWhileHoldingLock"})
-	synchronized public void start() throws IOException, SQLException {
+	public synchronized void start() throws IOException, SQLException {
 		if(!isStarted) {
 			AOServConnector conn = environment.getConnector();
 			conn.getBackup().getFileReplication().addTableListener(tableListener);
@@ -127,7 +127,7 @@ final public class BackupDaemon {
 		}
 	}
 
-	synchronized private void verifyThreads() throws IOException, SQLException {
+	private synchronized void verifyThreads() throws IOException, SQLException {
 		// Ignore events coming in after shutdown
 		if(isStarted) {
 			Host thisHost = environment.getThisHost();
@@ -164,7 +164,7 @@ final public class BackupDaemon {
 	/**
 	 * Stops the backup daemon and any currently running backups.
 	 */
-	synchronized public void stop() throws IOException, SQLException {
+	public synchronized void stop() throws IOException, SQLException {
 		if(isStarted) {
 			AOServConnector conn = environment.getConnector();
 			conn.getBackup().getFileReplication().removeTableListener(tableListener);
@@ -189,15 +189,15 @@ final public class BackupDaemon {
 		}
 	}
 
-	synchronized public void runNow(FileReplication ffr) {
+	public synchronized void runNow(FileReplication ffr) {
 		BackupDaemonThread thread = threads.get(ffr);
 		if(thread!=null) thread.runNow();
 	}
 
 	private static class DynamicBitRateProvider implements BitRateProvider {
 
-		final private BackupEnvironment environment;
-		final private FileReplication originalFfr;
+		private final BackupEnvironment environment;
+		private final FileReplication originalFfr;
 
 		private DynamicBitRateProvider(BackupEnvironment environment, FileReplication ffr) {
 			this.environment = environment;
@@ -259,7 +259,7 @@ final public class BackupDaemon {
 
 		private final BackupEnvironment environment;
 		private final FileReplication ffr;
-		volatile private boolean runNow;
+		private volatile boolean runNow;
 		private Thread thread;
 		private Thread lastThread;
 
@@ -268,14 +268,14 @@ final public class BackupDaemon {
 			this.ffr = ffr;
 		}
 
-		synchronized private void start() {
+		private synchronized void start() {
 			if(thread==null) {
 				lastThread = null;
 				(thread = new Thread(this)).start();
 			}
 		}
 
-		synchronized private void stop() {
+		private synchronized void stop() {
 			Thread curThread = thread;
 			if(curThread!=null) {
 				lastThread = curThread;
@@ -284,7 +284,7 @@ final public class BackupDaemon {
 			}
 		}
 
-		synchronized private void runNow() {
+		private synchronized void runNow() {
 			Thread curThread = thread;
 			if(curThread!=null) {
 				runNow = true;

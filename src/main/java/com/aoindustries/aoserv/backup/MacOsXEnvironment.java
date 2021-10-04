@@ -32,7 +32,7 @@ import java.util.Map;
 /**
  * @author  AO Industries, Inc.
  */
-abstract public class MacOsXEnvironment extends FileEnvironment {
+public abstract class MacOsXEnvironment extends FileEnvironment {
 
 	@Override
 	protected Map<String, FilesystemIteratorRule> getFilesystemIteratorRules(FileReplication ffr) throws IOException, SQLException {

@@ -35,7 +35,7 @@ import java.util.Map;
  *
  * @author  AO Industries, Inc.
  */
-abstract public class LinuxEnvironment extends PosixFileEnvironment {
+public abstract class LinuxEnvironment extends PosixFileEnvironment {
 
 	@Override
 	protected Map<String, FilesystemIteratorRule> getFilesystemIteratorRules(FileReplication ffr) throws IOException, SQLException {

@@ -40,7 +40,7 @@ import java.util.Map;
  *
  * @author  AO Industries, Inc.
  */
-abstract public class PosixFileEnvironment extends FileEnvironment {
+public abstract class PosixFileEnvironment extends FileEnvironment {
 
 	private final Object unixFileCacheLock=new Object();
 	private final Map<FileReplication, File> lastFiles = new HashMap<>();

@@ -32,7 +32,7 @@ import java.util.Map;
 /**
  * @author  AO Industries, Inc.
  */
-abstract public class WindowsEnvironment extends FileEnvironment {
+public abstract class WindowsEnvironment extends FileEnvironment {
 
 	@Override
 	protected Map<String, FilesystemIteratorRule> getFilesystemIteratorRules(FileReplication ffr) throws IOException, SQLException {
