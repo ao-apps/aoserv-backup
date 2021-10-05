@@ -1,4 +1,4 @@
-# [<img src="ao-logo.png" alt="AO Logo" width="35" height="40">](https://github.com/aoindustries) [AOServ](https://aoindustries.com/aoserv/) / [Backup](https://github.com/aoindustries/aoserv-backup)
+# [<img src="ao-logo.png" alt="AO Logo" width="35" height="40">](https://github.com/ao-apps) [AOServ](https://aoindustries.com/aoserv/) / [Backup](https://github.com/ao-apps/aoserv-backup)
 
 [![project: current stable](https://aoindustries.com/ao-badges/project-current-stable.svg)](https://aoindustries.com/life-cycle#project-current-stable)
 [![management: production](https://aoindustries.com/ao-badges/management-production.svg)](https://aoindustries.com/life-cycle#management-production)
@@ -6,7 +6,7 @@
 [![java: &gt;= 8](https://aoindustries.com/ao-badges/java-8.svg)](https://docs.oracle.com/javase/8/docs/api/)
 [![license: LGPL v3](https://aoindustries.com/ao-badges/license-lgpl-3.0.svg)](https://www.gnu.org/licenses/lgpl-3.0)
 
-[![Build](https://github.com/aoindustries/aoserv-backup/workflows/Build/badge.svg?branch=master)](https://github.com/aoindustries/aoserv-backup/actions?query=workflow%3ABuild)
+[![Build](https://github.com/ao-apps/aoserv-backup/workflows/Build/badge.svg?branch=master)](https://github.com/ao-apps/aoserv-backup/actions?query=workflow%3ABuild)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.aoindustries/aoserv-backup/badge.svg)](https://maven-badges.herokuapp.com/maven-central/com.aoindustries/aoserv-backup)
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?branch=master&project=com.aoapps.platform%3Aaoapps-backup&metric=alert_status)](https://sonarcloud.io/dashboard?branch=master&id=com.aoapps.platform%3Aaoapps-backup)
 [![Lines of Code](https://sonarcloud.io/api/project_badges/measure?branch=master&project=com.aoapps.platform%3Aaoapps-backup&metric=ncloc)](https://sonarcloud.io/component_measures?branch=master&id=com.aoapps.platform%3Aaoapps-backup&metric=ncloc)  
@@ -22,7 +22,7 @@ Backup client for the [AOServ Platform](https://aoindustries.com/aoserv/).
 * [Changelog](https://aoindustries.com/aoserv/backup/changelog)
 * [API Docs](https://aoindustries.com/aoserv/backup/apidocs/)
 * [Maven Central Repository](https://search.maven.org/artifact/com.aoindustries/aoserv-backup)
-* [GitHub](https://github.com/aoindustries/aoserv-backup)
+* [GitHub](https://github.com/ao-apps/aoserv-backup)
 
 ## Contact Us
 For questions or support, please [contact us](https://aoindustries.com/contact):
