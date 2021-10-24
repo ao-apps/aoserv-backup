@@ -229,11 +229,11 @@ public final class BackupDaemon {
 
 		private static String convertExtraInfo(Object[] extraInfo) {
 			if(extraInfo==null) return null;
-			StringBuilder SB = new StringBuilder();
+			StringBuilder sb = new StringBuilder();
 			for(Object o : extraInfo) {
-				SB.append(o).append(System.lineSeparator());
+				sb.append(o).append(System.lineSeparator());
 			}
-			return SB.toString();
+			return sb.toString();
 		}
 
 		/**
@@ -516,7 +516,7 @@ public final class BackupDaemon {
 									int sleepyTime = 5*60*1000 + random.nextInt(10*60*1000);
 									if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "Sleeping for "+sleepyTime+" milliseconds after an error");
 									try {
-										Thread.sleep(sleepyTime); 
+										Thread.sleep(sleepyTime);
 									} catch(InterruptedException err) {
 										// May be interrupted by stop call
 									}
