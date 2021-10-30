@@ -90,6 +90,10 @@ public final class BackupDaemon {
 		public void tableUpdated(Table<?> table) {
 			try {
 				verifyThreads();
+			} catch(InterruptedException err) {
+				environment.getLogger().logp(Level.WARNING, getClass().getName(), "tableUpdated", null, err);
+				// Restore the interrupted status
+				Thread.currentThread().interrupt();
 			} catch(IOException | SQLException err) {
 				environment.getLogger().logp(Level.SEVERE, getClass().getName(), "tableUpdated", null, err);
 			}
@@ -105,29 +109,29 @@ public final class BackupDaemon {
 			AOServConnector conn = environment.getConnector();
 			conn.getBackup().getFileReplication().addTableListener(tableListener);
 			isStarted = true;
-			new Thread(
-				() -> {
-					while(true) {
+			new Thread(() -> {
+				while(!Thread.currentThread().isInterrupted()) {
+					try {
+						verifyThreads();
+						break;
+					} catch(ThreadDeath td) {
+						throw td;
+					} catch(Throwable t) {
+						environment.getLogger().logp(Level.SEVERE, getClass().getName(), "run", null, t);
 						try {
-							verifyThreads();
-							break;
-						} catch(ThreadDeath td) {
-							throw td;
-						} catch(Throwable t) {
-							environment.getLogger().logp(Level.SEVERE, getClass().getName(), "run", null, t);
-							try {
-								Thread.sleep(60000);
-							} catch(InterruptedException err2) {
-								environment.getLogger().logp(Level.WARNING, getClass().getName(), "run", null, err2);
-							}
+							Thread.sleep(60000);
+						} catch(InterruptedException err2) {
+							environment.getLogger().logp(Level.WARNING, getClass().getName(), "run", null, err2);
+							// Restore the interrupted status
+							Thread.currentThread().interrupt();
 						}
 					}
 				}
-			).start();
+			}).start();
 		}
 	}
 
-	private synchronized void verifyThreads() throws IOException, SQLException {
+	private synchronized void verifyThreads() throws IOException, SQLException, InterruptedException {
 		// Ignore events coming in after shutdown
 		if(isStarted) {
 			Host thisHost = environment.getThisHost();
@@ -152,11 +156,7 @@ public final class BackupDaemon {
 			for(FileReplication ffr : removedList) {
 				BackupDaemonThread thread = threads.remove(ffr);
 				if(isDebug) logger.logp(Level.FINE, getClass().getName(), "verifyThreads", "Joining BackupDaemonThread for "+ffr);
-				try {
-					thread.join();
-				} catch(InterruptedException err) {
-					environment.getLogger().logp(Level.WARNING, getClass().getName(), "verifyThreads", null, err);
-				}
+				thread.join();
 			}
 		}
 	}
@@ -177,13 +177,15 @@ public final class BackupDaemon {
 				entry.getValue().stop();
 			}
 			// Join each thread (wait for actual stop)
-			for(Map.Entry<FileReplication, BackupDaemonThread> entry : threads.entrySet()) {
-				if(isDebug) logger.logp(Level.FINE, getClass().getName(), "stop", "Joining BackupDaemonThread for "+entry.getKey());
-				try {
+			try {
+				for(Map.Entry<FileReplication, BackupDaemonThread> entry : threads.entrySet()) {
+					if(isDebug) logger.logp(Level.FINE, getClass().getName(), "stop", "Joining BackupDaemonThread for "+entry.getKey());
 					entry.getValue().join();
-				} catch(InterruptedException err) {
-					environment.getLogger().logp(Level.WARNING, getClass().getName(), "stop", null, err);
 				}
+			} catch(InterruptedException err) {
+				environment.getLogger().logp(Level.WARNING, getClass().getName(), "stop", null, err);
+				// Restore the interrupted status
+				Thread.currentThread().interrupt();
 			}
 			threads.clear();
 		}
@@ -241,8 +243,8 @@ public final class BackupDaemon {
 		 * @return the number of files in the array, zero (0) indicates iteration has completed
 		 */
 		private static int getNextFilenames(Set<String> remainingRequiredFilenames, Iterator<String> filenameIterator, String[] filenames, int batchSize) throws IOException {
-			int c=0;
-			while(c<batchSize) {
+			int c = 0;
+			while(c < batchSize) {
 				if(!filenameIterator.hasNext()) break;
 				String filename = filenameIterator.next();
 				// Remove from required
@@ -311,7 +313,7 @@ public final class BackupDaemon {
 			final Thread currentThread = Thread.currentThread();
 			while(true) {
 				synchronized(this) {
-					if(currentThread != thread) return;
+					if(currentThread != thread || currentThread.isInterrupted()) return;
 				}
 				Random random = environment.getRandom();
 				Logger logger = environment.getLogger();
@@ -338,7 +340,7 @@ public final class BackupDaemon {
 					int lastCheckMinute = -1; // The last minute that was checked
 					while(true) {
 						synchronized(this) {
-							if(currentThread != thread) return;
+							if(currentThread != thread || currentThread.isInterrupted()) return;
 						}
 						// Sleep then look for the next (possibly missed) schedule
 						if(!runNow) {
@@ -352,16 +354,18 @@ public final class BackupDaemon {
 								Thread.sleep(sleepyTime);
 							} catch(InterruptedException err) {
 								// May be interrupted by stop call
+								// Restore the interrupted status
+								currentThread.interrupt();
 							}
 						}
 						synchronized(this) {
-							if(currentThread != thread) return;
+							if(currentThread != thread || currentThread.isInterrupted()) return;
 						}
 
 						// Get the latest ffr object (if cache was invalidated) to adhere to changes in enabled flag
 						FileReplication newFFR = environment.getConnector().getBackup().getFileReplication().get(ffr.getPkey());
 						synchronized(this) {
-							if(currentThread != thread) return;
+							if(currentThread != thread || currentThread.isInterrupted()) return;
 						}
 
 						if(newFFR==null) {
@@ -385,7 +389,7 @@ public final class BackupDaemon {
 							Server toServer = newFFR.getBackupPartition().getLinuxServer();
 							if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "toServer="+toServer);
 							synchronized(this) {
-								if(currentThread != thread) return;
+								if(currentThread != thread || currentThread.isInterrupted()) return;
 							}
 
 							// Should it run now?
@@ -434,7 +438,7 @@ public final class BackupDaemon {
 								// If there is currently no schedule, this will not flag shouldRun and the check for 24-hours passed (above) will force the backup
 								List<FileReplicationSchedule> schedules = newFFR.getFailoverFileSchedules();
 								synchronized(this) {
-									if(currentThread != thread) return;
+									if(currentThread != thread || currentThread.isInterrupted()) return;
 								}
 								shouldRun = false;
 								for(FileReplicationSchedule schedule : schedules) {
@@ -494,7 +498,7 @@ public final class BackupDaemon {
 							lastCheckMinute = currentMinute;
 							if(shouldRun) {
 								synchronized(this) {
-									if(currentThread != thread) return;
+									if(currentThread != thread || currentThread.isInterrupted()) return;
 								}
 								try {
 									lastStartTime = new Timestamp(currentTime);
@@ -510,7 +514,7 @@ public final class BackupDaemon {
 								} catch(Throwable t) {
 									environment.getLogger().logp(Level.SEVERE, getClass().getName(), "run", null, t);
 									synchronized(this) {
-										if(currentThread != thread) return;
+										if(currentThread != thread || currentThread.isInterrupted()) return;
 									}
 									//Randomized sleep interval to reduce master load on startup (5-15 minutes)
 									int sleepyTime = 5*60*1000 + random.nextInt(10*60*1000);
@@ -519,6 +523,8 @@ public final class BackupDaemon {
 										Thread.sleep(sleepyTime);
 									} catch(InterruptedException err) {
 										// May be interrupted by stop call
+										// Restore the interrupted status
+										currentThread.interrupt();
 									}
 								}
 							}
@@ -529,7 +535,7 @@ public final class BackupDaemon {
 				} catch(Throwable t) {
 					environment.getLogger().logp(Level.SEVERE, getClass().getName(), "run", null, t);
 					synchronized(this) {
-						if(currentThread != thread) return;
+						if(currentThread != thread || currentThread.isInterrupted()) return;
 					}
 					//Randomized sleep interval to reduce master load on startup (5-15 minutes)
 					int sleepyTime = 5*60*1000 + (int)(Math.random()*(10*60*1000));
@@ -538,6 +544,8 @@ public final class BackupDaemon {
 						Thread.sleep(sleepyTime);
 					} catch(InterruptedException err) {
 						// May be interrupted by stop call
+						// Restore the interrupted status
+						currentThread.interrupt();
 					}
 				}
 			}
@@ -549,14 +557,14 @@ public final class BackupDaemon {
 
 			environment.preBackup(ffr);
 			synchronized(this) {
-				if(currentThread != thread) return;
+				if(currentThread != thread || currentThread.isInterrupted()) return;
 			}
 			environment.init(ffr);
 			try {
 				Logger logger = environment.getLogger();
 				boolean isDebug = logger.isLoggable(Level.FINE);
 				synchronized(this) {
-					if(currentThread != thread) return;
+					if(currentThread != thread || currentThread.isInterrupted()) return;
 				}
 				final Host thisHost = environment.getThisHost();
 				final int failoverBatchSize = environment.getFailoverBatchSize(ffr);
@@ -564,7 +572,7 @@ public final class BackupDaemon {
 				final boolean useCompression = ffr.getUseCompression();
 				final short retention = ffr.getRetention().getDays();
 				synchronized(this) {
-					if(currentThread != thread) return;
+					if(currentThread != thread || currentThread.isInterrupted()) return;
 				}
 
 				if(isDebug) logger.logp(Level.FINE, getClass().getName(), "backupPass", (retention>1 ? "Backup: " : "Failover: ") + "Running failover from "+thisHost+" to "+toServer);
@@ -591,7 +599,7 @@ public final class BackupDaemon {
 						sourceIPAddress = environment.getDefaultSourceIPAddress();
 					}
 					synchronized(this) {
-						if(currentThread != thread) return;
+						if(currentThread != thread || currentThread.isInterrupted()) return;
 					}
 					AOServDaemonConnector daemonConnector = AOServDaemonConnector.getConnector(
 						daemonAccess.getHost(),
@@ -607,7 +615,7 @@ public final class BackupDaemon {
 					try (AOServDaemonConnection daemonConn = daemonConnector.getConnection()) {
 						try {
 							synchronized(this) {
-								if(currentThread != thread) return;
+								if(currentThread != thread || currentThread.isInterrupted()) return;
 							}
 							// Start the replication
 							StreamableOutput rawOut = daemonConn.getRequestOut(AOServDaemonProtocol.FAILOVER_FILE_REPLICATION);
@@ -637,13 +645,13 @@ public final class BackupDaemon {
 							}
 							rawOut.flush();
 							synchronized(this) {
-								if(currentThread != thread) return;
+								if(currentThread != thread || currentThread.isInterrupted()) return;
 							}
 
 							StreamableInput rawIn=daemonConn.getResponseIn();
 							int result=rawIn.read();
 							synchronized(this) {
-								if(currentThread != thread) return;
+								if(currentThread != thread || currentThread.isInterrupted()) return;
 							}
 							if(result == AOServDaemonProtocol.NEXT) {
 								// Only the output is limited because input should always be smaller than the output
@@ -674,7 +682,7 @@ public final class BackupDaemon {
 									final Iterator<String> filenameIterator = environment.getFilenameIterator(ffr);
 									while(true) {
 										synchronized(this) {
-											if(currentThread != thread) return;
+											if(currentThread != thread || currentThread.isInterrupted()) return;
 										}
 										int batchSize = getNextFilenames(remainingRequiredFilenames, filenameIterator, filenames, failoverBatchSize);
 										if(batchSize == 0) break;
@@ -749,20 +757,20 @@ public final class BackupDaemon {
 											);
 										}*/
 										synchronized(this) {
-											if(currentThread != thread) return;
+											if(currentThread != thread || currentThread.isInterrupted()) return;
 										}
 
 										// Read the results
 										result = in.read();
 										synchronized(this) {
-											if(currentThread != thread) return;
+											if(currentThread != thread || currentThread.isInterrupted()) return;
 										}
 										boolean hasRequestData = false;
 										if(result == AOServDaemonProtocol.NEXT) {
 											for(int d = 0; d < batchSize; d++) {
 												if(filenames[d] != null) {
 													synchronized(this) {
-														if(currentThread != thread) return;
+														if(currentThread != thread || currentThread.isInterrupted()) return;
 													}
 													result = in.read();
 													results[d] = result;
@@ -795,7 +803,7 @@ public final class BackupDaemon {
 											else throw new IOException("Unknown result: " + result);
 										}
 										synchronized(this) {
-											if(currentThread != thread) return;
+											if(currentThread != thread || currentThread.isInterrupted()) return;
 										}
 
 										// Process the results
@@ -811,7 +819,7 @@ public final class BackupDaemon {
 										}
 										for(int d = 0; d < batchSize; d++) {
 											synchronized(this) {
-												if(currentThread != thread) return;
+												if(currentThread != thread || currentThread.isInterrupted()) return;
 											}
 											String filename = filenames[d];
 											if(filename != null) {
@@ -831,7 +839,7 @@ public final class BackupDaemon {
 																// Only the last chunk may be less than a full chunk size
 																while(true) {
 																	synchronized(this) {
-																		if(currentThread != thread) return;
+																		if(currentThread != thread || currentThread.isInterrupted()) return;
 																	}
 																	int pos = 0;
 																	do {
@@ -840,7 +848,7 @@ public final class BackupDaemon {
 																		pos += ret;
 																	} while(pos < AOServDaemonProtocol.FAILOVER_FILE_REPLICATION_CHUNK_SIZE);
 																	synchronized(this) {
-																		if(currentThread != thread) return;
+																		if(currentThread != thread || currentThread.isInterrupted()) return;
 																	}
 																	if(pos > 0) {
 																		outgoing.write(AOServDaemonProtocol.NEXT);
@@ -860,7 +868,7 @@ public final class BackupDaemon {
 														throw new IOException("filename=" + filename, e);
 													} finally {
 														synchronized(this) {
-															if(currentThread != thread) return;
+															if(currentThread != thread || currentThread.isInterrupted()) return;
 														}
 														outgoing.write(AOServDaemonProtocol.DONE);
 													}
@@ -879,7 +887,7 @@ public final class BackupDaemon {
 															int sendChunkCount = 0;
 															while(true) {
 																synchronized(this) {
-																	if(currentThread != thread) return;
+																	if(currentThread != thread || currentThread.isInterrupted()) return;
 																}
 																// Read fully one chunk or to end of file
 																// Java 9: readNBytes
@@ -890,7 +898,7 @@ public final class BackupDaemon {
 																	pos += ret;
 																} while(pos < AOServDaemonProtocol.FAILOVER_FILE_REPLICATION_CHUNK_SIZE);
 																synchronized(this) {
-																	if(currentThread != thread) return;
+																	if(currentThread != thread || currentThread.isInterrupted()) return;
 																}
 																if(pos > 0) {
 																	if(chunkNumber < numChunks) {
@@ -957,7 +965,7 @@ public final class BackupDaemon {
 														throw new IOException("filename=" + filename, e);
 													} finally {
 														synchronized(this) {
-															if(currentThread != thread) return;
+															if(currentThread != thread || currentThread.isInterrupted()) return;
 														}
 														outgoing.write(AOServDaemonProtocol.DONE);
 													}
@@ -969,7 +977,7 @@ public final class BackupDaemon {
 										if(hasRequestData) {
 											assert outgoing != null;
 											synchronized(this) {
-												if(currentThread != thread) return;
+												if(currentThread != thread || currentThread.isInterrupted()) return;
 											}
 											outgoing.flush();
 										}
@@ -985,7 +993,7 @@ public final class BackupDaemon {
 									}
 									// Tell the server we are finished
 									synchronized(this) {
-										if(currentThread != thread) return;
+										if(currentThread != thread || currentThread.isInterrupted()) return;
 									}
 									out.writeCompressedInt(-1);
 									out.flush();
@@ -996,7 +1004,7 @@ public final class BackupDaemon {
 										);
 									}*/
 									synchronized(this) {
-										if(currentThread != thread) return;
+										if(currentThread != thread || currentThread.isInterrupted()) return;
 									}
 									result=in.read();
 									if(result!=AOServDaemonProtocol.DONE) {
@@ -1038,6 +1046,9 @@ public final class BackupDaemon {
 									Thread.sleep(60*1000);
 								} catch(InterruptedException err2) {
 									environment.getLogger().logp(Level.WARNING, getClass().getName(), "backupPass", null, err2);
+									// Restore the interrupted status
+									currentThread.interrupt();
+									break;
 								}
 							}
 						}
@@ -1047,7 +1058,7 @@ public final class BackupDaemon {
 				environment.cleanup(ffr);
 			}
 			synchronized(this) {
-				if(currentThread != thread) return;
+				if(currentThread != thread || currentThread.isInterrupted()) return;
 			}
 			environment.postBackup(ffr);
 		}
@@ -1079,13 +1090,13 @@ public final class BackupDaemon {
 				return;
 			}
 
-			boolean done=false;
+			boolean done = false;
 			while(!done) {
 				try {
 					// Start up the daemon
 					BackupDaemon daemon = new BackupDaemon(environment);
 					daemon.start();
-					done=true;
+					done = true;
 				} catch (ThreadDeath td) {
 					throw td;
 				} catch (Throwable t) {
@@ -1095,6 +1106,9 @@ public final class BackupDaemon {
 						Thread.sleep(60000);
 					} catch(InterruptedException err) {
 						logger.logp(Level.WARNING, BackupDaemon.class.getName(), "main", null, err);
+						// Restore the interrupted status
+						Thread.currentThread().interrupt();
+						break;
 					}
 				}
 			}
