@@ -348,8 +348,8 @@ public final class BackupDaemon {
 								// Sleep some before checking again, this is randomized so schedules don't start exactly as scheduled
 								// But they should start within 5 minutes of the schedule.  This is because many people
 								// may schedule for certain times (like 6:00 am exactly)
-								//long sleepyTime = 60*1000 + random.nextInt(4*60*1000);
-								long sleepyTime = 55*1000;
+								//long sleepyTime = 60L * 1000 + random.nextInt(4 * 60 * 1000);
+								long sleepyTime = 55L * 1000;
 								if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "Sleeping for "+sleepyTime+" milliseconds before checking if backup pass needed.");
 								Thread.sleep(sleepyTime);
 							} catch(InterruptedException err) {
@@ -424,7 +424,7 @@ public final class BackupDaemon {
 								if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "Last pass in the future (time reset)");
 							} else if(
 								// Last pass more than 24 hours ago (this handles replications without schedules)
-								(currentTime - lastStartTime.getTime())>=(24*60*60*1000)
+								(currentTime - lastStartTime.getTime()) >= (24L * 60 * 60 * 1000)
 							) {
 								shouldRun = true;
 								if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "Last pass more than 24 hours ago");
@@ -538,8 +538,8 @@ public final class BackupDaemon {
 						if(currentThread != thread || currentThread.isInterrupted()) return;
 					}
 					//Randomized sleep interval to reduce master load on startup (5-15 minutes)
-					int sleepyTime = 5*60*1000 + (int)(Math.random()*(10*60*1000));
-					if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", "Sleeping for "+sleepyTime+" milliseconds after an error");
+					int sleepyTime = 5 * 60 * 1000 + random.nextInt(10 * 60 * 1000);
+					if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", "Sleeping for " + sleepyTime + " milliseconds after an error");
 					try {
 						Thread.sleep(sleepyTime);
 					} catch(InterruptedException err) {
@@ -1043,7 +1043,7 @@ public final class BackupDaemon {
 							} else {
 								environment.getLogger().logp(Level.SEVERE, getClass().getName(), "backupPass", "Error adding failover file log, will retry in one minute", t);
 								try {
-									Thread.sleep(60*1000);
+									Thread.sleep(60L * 1000);
 								} catch(InterruptedException err2) {
 									environment.getLogger().logp(Level.WARNING, getClass().getName(), "backupPass", null, err2);
 									// Restore the interrupted status
