@@ -114,7 +114,7 @@ public interface BackupEnvironment {
 	/**
 	 * Called right before a backup pass begins.
 	 * Implementations should call super.preBackup first.
-	 * 
+	 *
 	 * The process is:
 	 * <ol>
 	 *   <li>preBackup</li>
@@ -139,7 +139,7 @@ public interface BackupEnvironment {
 	 * Called in a finally block after any backup-pass completes, no data
 	 * will be obtained from the environment after this is called.
 	 * Implementations should call super.cleanup in a finally block.
-	 * 
+	 *
 	 * @see  #init(FileReplication)
 	 * @see  #preBackup(FileReplication)
 	 */
@@ -173,7 +173,7 @@ public interface BackupEnvironment {
 	 * Gets the list of MySQL server instance names that are being replicated.
 	 * This is only used for failover mode (retention==1), and should only
 	 * be used for a replication that includes MySQL replication (Server only)
-	 * 
+	 *
 	 * @see  #getReplicatedMySQLMinorVersions(FileReplication)
 	 */
 	List<Server.Name> getReplicatedMySQLServers(FileReplication ffr) throws IOException, SQLException;
@@ -182,17 +182,20 @@ public interface BackupEnvironment {
 	 * Gets the list of MySQL server versions (in the same order as the list returned by <code>getReplicatedMySQLServers</code>.
 	 * This is only used for failover mode (retention==1), and should only
 	 * be used for a replication that includes MySQL replication (Server only)
-	 * 
+	 *
 	 * @see  #getReplicatedMySQLServers(FileReplication)
 	 */
 	List<String> getReplicatedMySQLMinorVersions(FileReplication ffr) throws IOException, SQLException;
 
 	/**
+	 * A fast pseudo-random number generator for non-cryptographic purposes.
+	 * <p>
 	 * Gets a Random source for the backup daemon.  This does not need to be cryptographically strong
 	 * because it is only used to randomize some sleep times to distribute load on the server
 	 * processes.
+	 * </p>
 	 */
-	Random getRandom();
+	Random getFastRandom();
 
 	/**
 	 * Gets the logger for this environment.

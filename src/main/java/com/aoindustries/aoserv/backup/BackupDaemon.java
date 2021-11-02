@@ -315,7 +315,7 @@ public final class BackupDaemon {
 				synchronized(this) {
 					if(currentThread != thread || currentThread.isInterrupted()) return;
 				}
-				Random random = environment.getRandom();
+				Random fastRandom = environment.getFastRandom();
 				Logger logger = environment.getLogger();
 				boolean isDebug = logger.isLoggable(Level.FINE);
 				try {
@@ -517,7 +517,7 @@ public final class BackupDaemon {
 										if(currentThread != thread || currentThread.isInterrupted()) return;
 									}
 									//Randomized sleep interval to reduce master load on startup (5-15 minutes)
-									int sleepyTime = 5*60*1000 + random.nextInt(10*60*1000);
+									int sleepyTime = 5 * 60 * 1000 + fastRandom.nextInt(10 * 60 * 1000);
 									if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", (retention!=1 ? "Backup: " : "Failover: ") + "Sleeping for "+sleepyTime+" milliseconds after an error");
 									try {
 										Thread.sleep(sleepyTime);
@@ -538,7 +538,7 @@ public final class BackupDaemon {
 						if(currentThread != thread || currentThread.isInterrupted()) return;
 					}
 					//Randomized sleep interval to reduce master load on startup (5-15 minutes)
-					int sleepyTime = 5 * 60 * 1000 + random.nextInt(10 * 60 * 1000);
+					int sleepyTime = 5 * 60 * 1000 + fastRandom.nextInt(10 * 60 * 1000);
 					if(isDebug) logger.logp(Level.FINE, getClass().getName(), "run", "Sleeping for " + sleepyTime + " milliseconds after an error");
 					try {
 						Thread.sleep(sleepyTime);

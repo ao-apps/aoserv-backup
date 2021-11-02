@@ -207,10 +207,13 @@ public abstract class FileEnvironment implements BackupEnvironment {
 	}
 
 	/**
-	 * Uses the random source from AOServClient
+	 * {@inheritDoc}
+	 * <p>
+	 * Uses the random source from {@link AOServConnector#getFastRandom()}.
+	 * </p>
 	 */
 	@Override
-	public Random getRandom() {
+	public Random getFastRandom() {
 		return AOServConnector.getFastRandom();
 	}
 
