@@ -664,7 +664,7 @@ public final class BackupDaemon {
 								final StreamableOutput out = new StreamableOutput(
 									useCompression && daemonConn.getProtocolVersion().compareTo(AOServDaemonProtocol.Version.VERSION_1_84_19) >= 0
 									? new GZIPOutputStream(rawBytesOutStream, AOServDaemonProtocol.FAILOVER_FILE_REPLICATION_GZIP_BUFFER_SIZE, true)
-									// ? new AutoFinishGZIPOutputStream(new DontCloseOutputStream(rawBytesOutStream), BufferManager.BUFFER_SIZE)
+									// ? new AutoFinishGZIPOutputStream(new NoCloseOutputStream(rawBytesOutStream), BufferManager.BUFFER_SIZE)
 									: rawBytesOutStream
 								);
 
@@ -753,7 +753,7 @@ public final class BackupDaemon {
 										// Recreate the compressed stream after flush because GZIPOutputStream is broken.
 										/*if(useCompression) {
 											out = new StreamableOutput(
-												new AutoFinishGZIPOutputStream(new DontCloseOutputStream(rawBytesOutStream), BufferManager.BUFFER_SIZE)
+												new AutoFinishGZIPOutputStream(new NoCloseOutputStream(rawBytesOutStream), BufferManager.BUFFER_SIZE)
 											);
 										}*/
 										synchronized(this) {
@@ -1000,7 +1000,7 @@ public final class BackupDaemon {
 									// Recreate the compressed stream after flush because GZIPOutputStream is broken.
 									/*if(useCompression) {
 										out = new StreamableOutput(
-											new AutoFinishGZIPOutputStream(new DontCloseOutputStream(rawBytesOutStream), BufferManager.BUFFER_SIZE)
+											new AutoFinishGZIPOutputStream(new NoCloseOutputStream(rawBytesOutStream), BufferManager.BUFFER_SIZE)
 										);
 									}*/
 									synchronized(this) {
