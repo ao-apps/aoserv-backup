@@ -1085,7 +1085,7 @@ public final class BackupDaemon {
 			try {
 				environment=(BackupEnvironment)Class.forName(args[0]).getConstructor().newInstance();
 			} catch(ReflectiveOperationException err) {
-				ErrorPrinter.printStackTraces(err, System.err, new Object[] {"environment_classname="+args[0]});
+				ErrorPrinter.printStackTraces(err, System.err, "environment_classname=" + args[0]);
 				System.exit(2);
 				return;
 			}
