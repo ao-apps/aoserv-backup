@@ -131,11 +131,13 @@ public abstract class FileEnvironment implements BackupEnvironment {
 	@Override
 	@SuppressWarnings("NoopMethodInAbstractClass")
 	public void preBackup(FileReplication ffr) throws IOException, SQLException {
+		// Do nothing
 	}
 
 	@Override
 	@SuppressWarnings("NoopMethodInAbstractClass")
 	public void init(FileReplication ffr) throws IOException, SQLException {
+		// Do nothing
 	}
 
 	@Override
@@ -149,6 +151,7 @@ public abstract class FileEnvironment implements BackupEnvironment {
 	@Override
 	@SuppressWarnings("NoopMethodInAbstractClass")
 	public void postBackup(FileReplication ffr) throws IOException, SQLException {
+		// Do nothing
 	}
 
 	@Override
