@@ -1,6 +1,6 @@
 /*
  * aoserv-backup - Backup client for the AOServ Platform.
- * Copyright (C) 2001-2013, 2015, 2016, 2017, 2018, 2019, 2020, 2021  AO Industries, Inc.
+ * Copyright (C) 2001-2013, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022  AO Industries, Inc.
  *     support@aoindustries.com
  *     7262 Bull Pen Cir
  *     Mobile, AL 36695
@@ -664,7 +664,7 @@ public final class BackupDaemon {
 								final StreamableOutput out = new StreamableOutput(
 									useCompression && daemonConn.getProtocolVersion().compareTo(AOServDaemonProtocol.Version.VERSION_1_84_19) >= 0
 									? new GZIPOutputStream(rawBytesOutStream, AOServDaemonProtocol.FAILOVER_FILE_REPLICATION_GZIP_BUFFER_SIZE, true)
-									// ? new AutoFinishGZIPOutputStream(new NoCloseOutputStream(rawBytesOutStream), BufferManager.BUFFER_SIZE)
+									// ? new AutoFinishGZIPOutputStream(NoCloseOutputStream.wrap(rawBytesOutStream), BufferManager.BUFFER_SIZE)
 									: rawBytesOutStream
 								);
 
@@ -753,7 +753,7 @@ public final class BackupDaemon {
 										// Recreate the compressed stream after flush because GZIPOutputStream is broken.
 										/*if(useCompression) {
 											out = new StreamableOutput(
-												new AutoFinishGZIPOutputStream(new NoCloseOutputStream(rawBytesOutStream), BufferManager.BUFFER_SIZE)
+												new AutoFinishGZIPOutputStream(NoCloseOutputStream.wrap(rawBytesOutStream), BufferManager.BUFFER_SIZE)
 											);
 										}*/
 										synchronized(this) {
@@ -1000,7 +1000,7 @@ public final class BackupDaemon {
 									// Recreate the compressed stream after flush because GZIPOutputStream is broken.
 									/*if(useCompression) {
 										out = new StreamableOutput(
-											new AutoFinishGZIPOutputStream(new NoCloseOutputStream(rawBytesOutStream), BufferManager.BUFFER_SIZE)
+											new AutoFinishGZIPOutputStream(NoCloseOutputStream.wrap(rawBytesOutStream), BufferManager.BUFFER_SIZE)
 										);
 									}*/
 									synchronized(this) {
