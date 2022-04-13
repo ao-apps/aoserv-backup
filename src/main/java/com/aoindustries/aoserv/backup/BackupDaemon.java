@@ -242,7 +242,7 @@ public final class BackupDaemon {
 		 * Gets the next filenames, up to batchSize, removing those found from required.
 		 * @return the number of files in the array, zero (0) indicates iteration has completed
 		 */
-		private static int getNextFilenames(Set<String> remainingRequiredFilenames, Iterator<String> filenameIterator, String[] filenames, int batchSize) throws IOException {
+		private static int getNextFilenames(Set<String> remainingRequiredFilenames, Iterator<String> filenameIterator, String[] filenames, int batchSize) {
 			int c = 0;
 			while(c < batchSize) {
 				if(!filenameIterator.hasNext()) break;
