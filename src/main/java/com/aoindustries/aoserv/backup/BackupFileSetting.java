@@ -1,6 +1,6 @@
 /*
  * aoserv-backup - Backup client for the AOServ Platform.
- * Copyright (C) 2003-2009, 2018, 2019, 2020  AO Industries, Inc.
+ * Copyright (C) 2003-2009, 2018, 2019, 2020, 2022  AO Industries, Inc.
  *     support@aoindustries.com
  *     7262 Bull Pen Cir
  *     Mobile, AL 36695
@@ -20,6 +20,7 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with aoserv-backup.  If not, see <https://www.gnu.org/licenses/>.
  */
+
 package com.aoindustries.aoserv.backup;
 
 import com.aoindustries.aoserv.client.backup.FileReplicationSetting;
