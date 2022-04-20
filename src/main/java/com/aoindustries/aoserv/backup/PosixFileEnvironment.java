@@ -43,91 +43,95 @@ import java.util.Map;
  */
 public abstract class PosixFileEnvironment extends FileEnvironment {
 
-	private final Object unixFileCacheLock=new Object();
-	private final Map<FileReplication, File> lastFiles = new HashMap<>();
-	private final Map<FileReplication, PosixFile> lastPosixFiles = new HashMap<>();
-	private final Map<FileReplication, Stat> lastStats = new HashMap<>();
+  private final Object unixFileCacheLock=new Object();
+  private final Map<FileReplication, File> lastFiles = new HashMap<>();
+  private final Map<FileReplication, PosixFile> lastPosixFiles = new HashMap<>();
+  private final Map<FileReplication, Stat> lastStats = new HashMap<>();
 
-	protected PosixFile getPosixFile(FileReplication ffr, String filename) throws IOException {
-		File file = getFile(ffr, filename);
-		synchronized(unixFileCacheLock) {
-			PosixFile lastPosixFile;
-			if(file!=lastFiles.get(ffr)) {
-				lastPosixFile = new PosixFile(file);
-				lastPosixFiles.put(ffr, lastPosixFile);
-				lastStats.put(ffr, lastPosixFile.getStat());
-				lastFiles.put(ffr, file);
-			} else {
-				lastPosixFile = lastPosixFiles.get(ffr);
-			}
-			return lastPosixFile;
-		}
-	}
+  protected PosixFile getPosixFile(FileReplication ffr, String filename) throws IOException {
+    File file = getFile(ffr, filename);
+    synchronized (unixFileCacheLock) {
+      PosixFile lastPosixFile;
+      if (file != lastFiles.get(ffr)) {
+        lastPosixFile = new PosixFile(file);
+        lastPosixFiles.put(ffr, lastPosixFile);
+        lastStats.put(ffr, lastPosixFile.getStat());
+        lastFiles.put(ffr, file);
+      } else {
+        lastPosixFile = lastPosixFiles.get(ffr);
+      }
+      return lastPosixFile;
+    }
+  }
 
-	protected Stat getStat(FileReplication ffr, String filename) throws IOException {
-		if(filename==null) throw new AssertionError("filename is null");
-		File file = getFile(ffr, filename);
-		if(file==null) throw new AssertionError("file is null");
-		synchronized(unixFileCacheLock) {
-			Stat lastStat;
-			if(file!=lastFiles.get(ffr)) {
-				PosixFile lastPosixFile = new PosixFile(file);
-				lastPosixFiles.put(ffr, lastPosixFile);
-				lastStat = lastPosixFile.getStat();
-				lastStats.put(ffr, lastStat);
-				lastFiles.put(ffr, file);
-			} else {
-				lastStat = lastStats.get(ffr);
-			}
-			return lastStat;
-		}
-	}
+  protected Stat getStat(FileReplication ffr, String filename) throws IOException {
+    if (filename == null) {
+      throw new AssertionError("filename is null");
+    }
+    File file = getFile(ffr, filename);
+    if (file == null) {
+      throw new AssertionError("file is null");
+    }
+    synchronized (unixFileCacheLock) {
+      Stat lastStat;
+      if (file != lastFiles.get(ffr)) {
+        PosixFile lastPosixFile = new PosixFile(file);
+        lastPosixFiles.put(ffr, lastPosixFile);
+        lastStat = lastPosixFile.getStat();
+        lastStats.put(ffr, lastStat);
+        lastFiles.put(ffr, file);
+      } else {
+        lastStat = lastStats.get(ffr);
+      }
+      return lastStat;
+    }
+  }
 
-	@Override
-	public long getStatMode(FileReplication ffr, String filename) throws IOException {
-		return getStat(ffr, filename).getRawMode();
-	}
+  @Override
+  public long getStatMode(FileReplication ffr, String filename) throws IOException {
+    return getStat(ffr, filename).getRawMode();
+  }
 
-	@Override
-	public int getUid(FileReplication ffr, String filename) throws IOException {
-		return getStat(ffr, filename).getUid();
-	}
+  @Override
+  public int getUid(FileReplication ffr, String filename) throws IOException {
+    return getStat(ffr, filename).getUid();
+  }
 
-	@Override
-	public int getGid(FileReplication ffr, String filename) throws IOException {
-		return getStat(ffr, filename).getGid();
-	}
+  @Override
+  public int getGid(FileReplication ffr, String filename) throws IOException {
+    return getStat(ffr, filename).getGid();
+  }
 
-	@Override
-	public long getModifyTime(FileReplication ffr, String filename) throws IOException {
-		return getStat(ffr, filename).getModifyTime();
-	}
+  @Override
+  public long getModifyTime(FileReplication ffr, String filename) throws IOException {
+    return getStat(ffr, filename).getModifyTime();
+  }
 
-	@Override
-	public long getLength(FileReplication ffr, String filename) throws IOException {
-		return getStat(ffr, filename).getSize();
-	}
+  @Override
+  public long getLength(FileReplication ffr, String filename) throws IOException {
+    return getStat(ffr, filename).getSize();
+  }
 
-	@Override
-	public String readLink(FileReplication ffr, String filename) throws IOException {
-		return getPosixFile(ffr, filename).readLink();
-	}
+  @Override
+  public String readLink(FileReplication ffr, String filename) throws IOException {
+    return getPosixFile(ffr, filename).readLink();
+  }
 
-	@Override
-	public long getDeviceIdentifier(FileReplication ffr, String filename) throws IOException {
-		return getStat(ffr, filename).getDeviceIdentifier();
-	}
+  @Override
+  public long getDeviceIdentifier(FileReplication ffr, String filename) throws IOException {
+    return getStat(ffr, filename).getDeviceIdentifier();
+  }
 
-	@Override
-	public void cleanup(FileReplication ffr) throws IOException, SQLException {
-		try {
-			synchronized(unixFileCacheLock) {
-				lastFiles.remove(ffr);
-				lastPosixFiles.remove(ffr);
-				lastStats.remove(ffr);
-			}
-		} finally {
-			super.cleanup(ffr);
-		}
-	}
+  @Override
+  public void cleanup(FileReplication ffr) throws IOException, SQLException {
+    try {
+      synchronized (unixFileCacheLock) {
+        lastFiles.remove(ffr);
+        lastPosixFiles.remove(ffr);
+        lastStats.remove(ffr);
+      }
+    } finally {
+      super.cleanup(ffr);
+    }
+  }
 }

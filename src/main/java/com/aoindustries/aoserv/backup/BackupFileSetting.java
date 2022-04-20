@@ -34,31 +34,31 @@ import com.aoindustries.aoserv.client.backup.FileReplicationSetting;
  */
 public class BackupFileSetting {
 
-	private String filename;
-	private boolean backupEnabled;
+  private String filename;
+  private boolean backupEnabled;
 
-	public void clear() {
-		filename=null;
-		backupEnabled=false;
-	}
+  public void clear() {
+    filename=null;
+    backupEnabled=false;
+  }
 
-	public String getFilename() {
-		return filename;
-	}
+  public String getFilename() {
+    return filename;
+  }
 
-	public boolean getBackupEnabled() {
-		return backupEnabled;
-	}
+  public boolean getBackupEnabled() {
+    return backupEnabled;
+  }
 
-	public void setSettings(
-		boolean backupEnabled
-	) {
-		this.backupEnabled=backupEnabled;
-	}
+  public void setSettings(
+    boolean backupEnabled
+  ) {
+    this.backupEnabled=backupEnabled;
+  }
 
-	public void setFilename(
-		String filename
-	) {
-		this.filename=filename;
-	}
+  public void setFilename(
+    String filename
+  ) {
+    this.filename=filename;
+  }
 }

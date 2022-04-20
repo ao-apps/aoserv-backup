@@ -38,21 +38,21 @@ import java.util.Map;
  */
 public abstract class LinuxEnvironment extends PosixFileEnvironment {
 
-	@Override
-	protected Map<String, FilesystemIteratorRule> getFilesystemIteratorRules(FileReplication ffr) throws IOException, SQLException {
-		Map<String, FilesystemIteratorRule> filesystemRules = new HashMap<>();
-		filesystemRules.put("/dev/log", FilesystemIteratorRule.SKIP);
-		filesystemRules.put("/dev/pts/", FilesystemIteratorRule.SKIP);
-		filesystemRules.put("/dev/shm/", FilesystemIteratorRule.SKIP);
-		filesystemRules.put("/proc/", FilesystemIteratorRule.SKIP);
-		filesystemRules.put("/selinux/", FilesystemIteratorRule.SKIP);
-		filesystemRules.put("/sys/", FilesystemIteratorRule.SKIP);
-		return filesystemRules;
-	}
+  @Override
+  protected Map<String, FilesystemIteratorRule> getFilesystemIteratorRules(FileReplication ffr) throws IOException, SQLException {
+    Map<String, FilesystemIteratorRule> filesystemRules = new HashMap<>();
+    filesystemRules.put("/dev/log", FilesystemIteratorRule.SKIP);
+    filesystemRules.put("/dev/pts/", FilesystemIteratorRule.SKIP);
+    filesystemRules.put("/dev/shm/", FilesystemIteratorRule.SKIP);
+    filesystemRules.put("/proc/", FilesystemIteratorRule.SKIP);
+    filesystemRules.put("/selinux/", FilesystemIteratorRule.SKIP);
+    filesystemRules.put("/sys/", FilesystemIteratorRule.SKIP);
+    return filesystemRules;
+  }
 
-	@Override
-	protected Map<String, FilesystemIteratorRule> getFilesystemIteratorPrefixRules(FileReplication ffr) throws IOException, SQLException {
-		Map<String, FilesystemIteratorRule> filesystemPrefixRules = new HashMap<>();
-		return filesystemPrefixRules;
-	}
+  @Override
+  protected Map<String, FilesystemIteratorRule> getFilesystemIteratorPrefixRules(FileReplication ffr) throws IOException, SQLException {
+    Map<String, FilesystemIteratorRule> filesystemPrefixRules = new HashMap<>();
+    return filesystemPrefixRules;
+  }
 }

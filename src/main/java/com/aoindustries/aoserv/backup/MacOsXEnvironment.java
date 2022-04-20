@@ -35,15 +35,15 @@ import java.util.Map;
  */
 public abstract class MacOsXEnvironment extends FileEnvironment {
 
-	@Override
-	protected Map<String, FilesystemIteratorRule> getFilesystemIteratorRules(FileReplication ffr) throws IOException, SQLException {
-		Map<String, FilesystemIteratorRule> filesystemRules = new HashMap<>();
-		return filesystemRules;
-	}
+  @Override
+  protected Map<String, FilesystemIteratorRule> getFilesystemIteratorRules(FileReplication ffr) throws IOException, SQLException {
+    Map<String, FilesystemIteratorRule> filesystemRules = new HashMap<>();
+    return filesystemRules;
+  }
 
-	@Override
-	protected Map<String, FilesystemIteratorRule> getFilesystemIteratorPrefixRules(FileReplication ffr) throws IOException, SQLException {
-		Map<String, FilesystemIteratorRule> filesystemPrefixRules = new HashMap<>();
-		return filesystemPrefixRules;
-	}
+  @Override
+  protected Map<String, FilesystemIteratorRule> getFilesystemIteratorPrefixRules(FileReplication ffr) throws IOException, SQLException {
+    Map<String, FilesystemIteratorRule> filesystemPrefixRules = new HashMap<>();
+    return filesystemPrefixRules;
+  }
 }
