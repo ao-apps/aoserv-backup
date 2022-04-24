@@ -83,7 +83,7 @@ public final class BackupDaemon {
   private final Map<FileReplication, BackupDaemonThread> threads = new HashMap<>();
 
   public BackupDaemon(BackupEnvironment environment) {
-    this.environment=environment;
+    this.environment = environment;
   }
 
   private final TableListener tableListener = new TableListener() {
@@ -144,7 +144,7 @@ public final class BackupDaemon {
         removedList.remove(ffr);
         if (!threads.containsKey(ffr)) {
           if (isDebug) {
-            logger.logp(Level.FINE, getClass().getName(), "verifyThreads", "Starting BackupDaemonThread for "+ffr);
+            logger.logp(Level.FINE, getClass().getName(), "verifyThreads", "Starting BackupDaemonThread for " + ffr);
           }
           BackupDaemonThread thread = new BackupDaemonThread(environment, ffr);
           threads.put(ffr, thread);
@@ -154,14 +154,14 @@ public final class BackupDaemon {
       for (FileReplication ffr : removedList) {
         BackupDaemonThread thread = threads.get(ffr);
         if (isDebug) {
-          logger.logp(Level.FINE, getClass().getName(), "verifyThreads", "Stopping BackupDaemonThread for "+ffr);
+          logger.logp(Level.FINE, getClass().getName(), "verifyThreads", "Stopping BackupDaemonThread for " + ffr);
         }
         thread.stop();
       }
       for (FileReplication ffr : removedList) {
         BackupDaemonThread thread = threads.remove(ffr);
         if (isDebug) {
-          logger.logp(Level.FINE, getClass().getName(), "verifyThreads", "Joining BackupDaemonThread for "+ffr);
+          logger.logp(Level.FINE, getClass().getName(), "verifyThreads", "Joining BackupDaemonThread for " + ffr);
         }
         thread.join();
       }
@@ -181,7 +181,7 @@ public final class BackupDaemon {
       // Stop each thread
       for (Map.Entry<FileReplication, BackupDaemonThread> entry : threads.entrySet()) {
         if (isDebug) {
-          logger.logp(Level.FINE, getClass().getName(), "stop", "Stopping BackupDaemonThread for "+entry.getKey());
+          logger.logp(Level.FINE, getClass().getName(), "stop", "Stopping BackupDaemonThread for " + entry.getKey());
         }
         entry.getValue().stop();
       }
@@ -189,7 +189,7 @@ public final class BackupDaemon {
       try {
         for (Map.Entry<FileReplication, BackupDaemonThread> entry : threads.entrySet()) {
           if (isDebug) {
-            logger.logp(Level.FINE, getClass().getName(), "stop", "Joining BackupDaemonThread for "+entry.getKey());
+            logger.logp(Level.FINE, getClass().getName(), "stop", "Joining BackupDaemonThread for " + entry.getKey());
           }
           entry.getValue().join();
         }
@@ -269,11 +269,11 @@ public final class BackupDaemon {
         // Remove from required
         String requiredFilename = filename;
         if (requiredFilename.endsWith(File.separator)) {
-          requiredFilename = requiredFilename.substring(0, requiredFilename.length()-1);
+          requiredFilename = requiredFilename.substring(0, requiredFilename.length() - 1);
         }
         //System.err.println("DEBUG: BackupDaemon: filename="+filename);
         remainingRequiredFilenames.remove(requiredFilename);
-        filenames[c++]=filename;
+        filenames[c++] = filename;
       }
       return c;
     }
@@ -349,15 +349,15 @@ public final class BackupDaemon {
           if (!ffls.isEmpty()) {
             FileReplicationLog lastLog = ffls.get(0);
             if (isDebug) {
-              logger.logp(Level.FINE, getClass().getName(), "run", (retention != 1 ? "Backup: " : "Failover: ") + "lastLog="+lastLog);
+              logger.logp(Level.FINE, getClass().getName(), "run", (retention != 1 ? "Backup: " : "Failover: ") + "lastLog=" + lastLog);
             }
             lastStartTime = lastLog.getStartTime();
             if (isDebug) {
-              logger.logp(Level.FINE, getClass().getName(), "run", (retention != 1 ? "Backup: " : "Failover: ") + "lastStartTime="+SQLUtility.formatDateTime(lastStartTime));
+              logger.logp(Level.FINE, getClass().getName(), "run", (retention != 1 ? "Backup: " : "Failover: ") + "lastStartTime=" + SQLUtility.formatDateTime(lastStartTime));
             }
             lastPassSuccessful = lastLog.isSuccessful();
             if (isDebug) {
-              logger.logp(Level.FINE, getClass().getName(), "run", (retention != 1 ? "Backup: " : "Failover: ") + "lastPassSuccessful="+lastPassSuccessful);
+              logger.logp(Level.FINE, getClass().getName(), "run", (retention != 1 ? "Backup: " : "Failover: ") + "lastPassSuccessful=" + lastPassSuccessful);
             }
           }
           // Single calendar instance is used
@@ -380,7 +380,7 @@ public final class BackupDaemon {
                 //long sleepyTime = 60L * 1000 + random.nextInt(4 * 60 * 1000);
                 long sleepyTime = 55L * 1000;
                 if (isDebug) {
-                  logger.logp(Level.FINE, getClass().getName(), "run", (retention != 1 ? "Backup: " : "Failover: ") + "Sleeping for "+sleepyTime+" milliseconds before checking if backup pass needed.");
+                  logger.logp(Level.FINE, getClass().getName(), "run", (retention != 1 ? "Backup: " : "Failover: ") + "Sleeping for " + sleepyTime + " milliseconds before checking if backup pass needed.");
                 }
                 Thread.sleep(sleepyTime);
               } catch (InterruptedException err) {
@@ -420,20 +420,20 @@ public final class BackupDaemon {
               int currentMinute = gcal.get(Calendar.MINUTE);
 
               if (isDebug) {
-                logger.logp(Level.FINE, getClass().getName(), "run", (retention != 1 ? "Backup: " : "Failover: ") + "newFFR="+newFFR);
+                logger.logp(Level.FINE, getClass().getName(), "run", (retention != 1 ? "Backup: " : "Failover: ") + "newFFR=" + newFFR);
               }
               Host thisHost = environment.getThisHost();
               if (isDebug) {
-                logger.logp(Level.FINE, getClass().getName(), "run", (retention != 1 ? "Backup: " : "Failover: ") + "thisServer="+thisHost);
+                logger.logp(Level.FINE, getClass().getName(), "run", (retention != 1 ? "Backup: " : "Failover: ") + "thisServer=" + thisHost);
               }
               Server thisServer = thisHost.getLinuxServer();
               Server failoverServer = thisServer == null ? null : thisServer.getFailoverServer();
               if (isDebug) {
-                logger.logp(Level.FINE, getClass().getName(), "run", (retention != 1 ? "Backup: " : "Failover: ") + "failoverServer="+failoverServer);
+                logger.logp(Level.FINE, getClass().getName(), "run", (retention != 1 ? "Backup: " : "Failover: ") + "failoverServer=" + failoverServer);
               }
               Server toServer = newFFR.getBackupPartition().getLinuxServer();
               if (isDebug) {
-                logger.logp(Level.FINE, getClass().getName(), "run", (retention != 1 ? "Backup: " : "Failover: ") + "toServer="+toServer);
+                logger.logp(Level.FINE, getClass().getName(), "run", (retention != 1 ? "Backup: " : "Failover: ") + "toServer=" + toServer);
               }
               synchronized (this) {
                 if (currentThread != thread || currentThread.isInterrupted()) {
@@ -444,12 +444,12 @@ public final class BackupDaemon {
               // Should it run now?
               boolean shouldRun;
               if (
-                // Will not replicate if the to server is our parent server in failover mode
-                toServer.equals(failoverServer)
+                  // Will not replicate if the to server is our parent server in failover mode
+                  toServer.equals(failoverServer)
               ) {
                 shouldRun = false;
                 if (isDebug) {
-                  logger.logp(Level.FINE, getClass().getName(), "run", (retention != 1 ? "Backup: " : "Failover: ") + "Refusing to replication to our failover parent: "+failoverServer);
+                  logger.logp(Level.FINE, getClass().getName(), "run", (retention != 1 ? "Backup: " : "Failover: ") + "Refusing to replication to our failover parent: " + failoverServer);
                 }
               } else if (runNow) {
                 shouldRun = true;
@@ -458,40 +458,40 @@ public final class BackupDaemon {
                   logger.logp(Level.FINE, getClass().getName(), "run", (retention != 1 ? "Backup: " : "Failover: ") + "runNow causing immediate run of backup");
                 }
               } else if (
-                // Never ran before
-                lastStartTime == null
+                  // Never ran before
+                  lastStartTime == null
               ) {
                 shouldRun = true;
                 if (isDebug) {
                   logger.logp(Level.FINE, getClass().getName(), "run", (retention != 1 ? "Backup: " : "Failover: ") + "Never ran this mirror");
                 }
               } else if (
-                // If the last attempt failed, run now
-                !lastPassSuccessful
+                  // If the last attempt failed, run now
+                  !lastPassSuccessful
               ) {
                 shouldRun = true;
                 if (isDebug) {
                   logger.logp(Level.FINE, getClass().getName(), "run", (retention != 1 ? "Backup: " : "Failover: ") + "The last attempt at this mirror failed");
                 }
               } else if (
-                // Last pass in the future (time reset)
-                lastStartTime.getTime() > currentTime
+                  // Last pass in the future (time reset)
+                  lastStartTime.getTime() > currentTime
               ) {
                 shouldRun = false;
                 if (isDebug) {
                   logger.logp(Level.FINE, getClass().getName(), "run", (retention != 1 ? "Backup: " : "Failover: ") + "Last pass in the future (time reset)");
                 }
               } else if (
-                // Last pass more than 24 hours ago (this handles replications without schedules)
-                (currentTime - lastStartTime.getTime()) >= (24L * 60 * 60 * 1000)
+                  // Last pass more than 24 hours ago (this handles replications without schedules)
+                  (currentTime - lastStartTime.getTime()) >= (24L * 60 * 60 * 1000)
               ) {
                 shouldRun = true;
                 if (isDebug) {
                   logger.logp(Level.FINE, getClass().getName(), "run", (retention != 1 ? "Backup: " : "Failover: ") + "Last pass more than 24 hours ago");
                 }
               } else if (
-                // The system time was set back
-                lastCheckTime != -1 && lastCheckTime>currentTime
+                  // The system time was set back
+                  lastCheckTime != -1 && lastCheckTime > currentTime
               ) {
                 shouldRun = false;
                 if (isDebug) {
@@ -511,40 +511,40 @@ public final class BackupDaemon {
                     int scheduleHour = schedule.getHour();
                     int scheduleMinute = schedule.getMinute();
                     if (
-                      // Look for exact time match
-                      currentHour == scheduleHour
-                      && currentMinute == scheduleMinute
+                        // Look for exact time match
+                        currentHour == scheduleHour
+                            && currentMinute == scheduleMinute
                     ) {
                       shouldRun = true;
                       if (isDebug) {
-                        logger.logp(Level.FINE, getClass().getName(), "run", (retention != 1 ? "Backup: " : "Failover: ") + "It is the scheduled time: scheduleHour="+scheduleHour+" and scheduleMinute="+scheduleMinute);
+                        logger.logp(Level.FINE, getClass().getName(), "run", (retention != 1 ? "Backup: " : "Failover: ") + "It is the scheduled time: scheduleHour=" + scheduleHour + " and scheduleMinute=" + scheduleMinute);
                       }
                       break;
                     }
-                  //} else {
-                  //  if (environment.isDebugEnabled()) {
-                  //    environment.debug((retention != 1 ? "Backup: " : "Failover: ") + "Skipping disabled schedule time: scheduleHour="+scheduleHour+" and scheduleMinute="+scheduleMinute);
-                  //  }
+                    //} else {
+                    //  if (environment.isDebugEnabled()) {
+                    //    environment.debug((retention != 1 ? "Backup: " : "Failover: ") + "Skipping disabled schedule time: scheduleHour="+scheduleHour+" and scheduleMinute="+scheduleMinute);
+                    //  }
                   }
                 }
                 if (
-                  !shouldRun // If exact schedule already found, don't need to check here
-                  && lastCheckTime != -1 // Don't look for missed schedule if last check time not set
-                  && (
-                    // Don't double-check the same minute (in case sleeps inaccurate or time reset)
-                    lastCheckHour != currentHour
-                    || lastCheckMinute != currentMinute
-                  )
+                    !shouldRun // If exact schedule already found, don't need to check here
+                        && lastCheckTime != -1 // Don't look for missed schedule if last check time not set
+                        && (
+                        // Don't double-check the same minute (in case sleeps inaccurate or time reset)
+                        lastCheckHour != currentHour
+                            || lastCheckMinute != currentMinute
+                    )
                 ) {
                   CHECK_LOOP:
                   while (true) {
                     // Increment minute first
                     lastCheckMinute++;
                     if (lastCheckMinute >= 60) {
-                      lastCheckMinute=0;
+                      lastCheckMinute = 0;
                       lastCheckHour++;
                       if (lastCheckHour >= 24) {
-                        lastCheckHour=0;
+                        lastCheckHour = 0;
                       }
                     }
                     // Current minute already checked above, terminate loop
@@ -559,7 +559,7 @@ public final class BackupDaemon {
                         if (lastCheckHour == scheduleHour && lastCheckMinute == scheduleMinute) {
                           shouldRun = true;
                           if (isDebug) {
-                            logger.logp(Level.FINE, getClass().getName(), "run", (retention != 1 ? "Backup: " : "Failover: ") + "Missed a scheduled time: scheduleHour="+scheduleHour+" and scheduleMinute="+scheduleMinute);
+                            logger.logp(Level.FINE, getClass().getName(), "run", (retention != 1 ? "Backup: " : "Failover: ") + "Missed a scheduled time: scheduleHour=" + scheduleHour + " and scheduleMinute=" + scheduleMinute);
                           }
                           break CHECK_LOOP;
                         }
@@ -598,7 +598,7 @@ public final class BackupDaemon {
                   //Randomized sleep interval to reduce master load on startup (5-15 minutes)
                   int sleepyTime = 5 * 60 * 1000 + fastRandom.nextInt(10 * 60 * 1000);
                   if (isDebug) {
-                    logger.logp(Level.FINE, getClass().getName(), "run", (retention != 1 ? "Backup: " : "Failover: ") + "Sleeping for "+sleepyTime+" milliseconds after an error");
+                    logger.logp(Level.FINE, getClass().getName(), "run", (retention != 1 ? "Backup: " : "Failover: ") + "Sleeping for " + sleepyTime + " milliseconds after an error");
                   }
                   try {
                     Thread.sleep(sleepyTime);
@@ -667,17 +667,17 @@ public final class BackupDaemon {
         }
 
         if (isDebug) {
-          logger.logp(Level.FINE, getClass().getName(), "backupPass", (retention>1 ? "Backup: " : "Failover: ") + "Running failover from "+thisHost+" to "+toServer);
+          logger.logp(Level.FINE, getClass().getName(), "backupPass", (retention > 1 ? "Backup: " : "Failover: ") + "Running failover from " + thisHost + " to " + toServer);
         }
 
         GregorianCalendar gcal = new GregorianCalendar();
         final long startTime = gcal.getTimeInMillis();
 
         if (isDebug) {
-          logger.logp(Level.FINE, getClass().getName(), "backupPass", (retention>1 ? "Backup: " : "Failover: ") + "useCompression="+useCompression);
+          logger.logp(Level.FINE, getClass().getName(), "backupPass", (retention > 1 ? "Backup: " : "Failover: ") + "useCompression=" + useCompression);
         }
         if (isDebug) {
-          logger.logp(Level.FINE, getClass().getName(), "backupPass", (retention>1 ? "Backup: " : "Failover: ") + "retention="+retention);
+          logger.logp(Level.FINE, getClass().getName(), "backupPass", (retention > 1 ? "Backup: " : "Failover: ") + "retention=" + retention);
         }
 
         // Keep statistics during the replication
@@ -701,15 +701,15 @@ public final class BackupDaemon {
             }
           }
           AOServDaemonConnector daemonConnector = AOServDaemonConnector.getConnector(
-            daemonAccess.getHost(),
-            sourceIPAddress,
-            daemonAccess.getPort(),
-            daemonAccess.getProtocol(),
-            null,
-            toServer.getPoolSize(),
-            AOPool.DEFAULT_MAX_CONNECTION_AGE,
-            AOServClientConfiguration.getSslTruststorePath(),
-            AOServClientConfiguration.getSslTruststorePassword()
+              daemonAccess.getHost(),
+              sourceIPAddress,
+              daemonAccess.getPort(),
+              daemonAccess.getProtocol(),
+              null,
+              toServer.getPoolSize(),
+              AOPool.DEFAULT_MAX_CONNECTION_AGE,
+              AOServClientConfiguration.getSslTruststorePath(),
+              AOServClientConfiguration.getSslTruststorePassword()
           );
           try (AOServDaemonConnection daemonConn = daemonConnector.getConnection()) {
             try {
@@ -729,7 +729,7 @@ public final class BackupDaemon {
 
               // Determine the date on the from server
               final int year = gcal.get(Calendar.YEAR);
-              final int month = gcal.get(Calendar.MONTH)+1;
+              final int month = gcal.get(Calendar.MONTH) + 1;
               final int day = gcal.get(Calendar.DAY_OF_MONTH);
               rawOut.writeShort(year);
               rawOut.writeShort(month);
@@ -751,8 +751,8 @@ public final class BackupDaemon {
                 }
               }
 
-              StreamableInput rawIn=daemonConn.getResponseIn();
-              int result=rawIn.read();
+              StreamableInput rawIn = daemonConn.getResponseIn();
+              int result = rawIn.read();
               synchronized (this) {
                 if (currentThread != thread || currentThread.isInterrupted()) {
                   return;
@@ -761,16 +761,16 @@ public final class BackupDaemon {
               if (result == AOServDaemonProtocol.NEXT) {
                 // Only the output is limited because input should always be smaller than the output
                 final ByteCountOutputStream rawBytesOutStream = new ByteCountOutputStream(
-                  new BitRateOutputStream(
-                    rawOut,
-                    new DynamicBitRateProvider(environment, ffr)
-                  )
+                    new BitRateOutputStream(
+                        rawOut,
+                        new DynamicBitRateProvider(environment, ffr)
+                    )
                 );
                 final StreamableOutput out = new StreamableOutput(
-                  useCompression && daemonConn.getProtocolVersion().compareTo(AOServDaemonProtocol.Version.VERSION_1_84_19) >= 0
-                  ? new GZIPOutputStream(rawBytesOutStream, AOServDaemonProtocol.FAILOVER_FILE_REPLICATION_GZIP_BUFFER_SIZE, true)
-                  // ? new AutoFinishGZIPOutputStream(NoCloseOutputStream.wrap(rawBytesOutStream), BufferManager.BUFFER_SIZE)
-                  : rawBytesOutStream
+                    useCompression && daemonConn.getProtocolVersion().compareTo(AOServDaemonProtocol.Version.VERSION_1_84_19) >= 0
+                        ? new GZIPOutputStream(rawBytesOutStream, AOServDaemonProtocol.FAILOVER_FILE_REPLICATION_GZIP_BUFFER_SIZE, true)
+                        // ? new AutoFinishGZIPOutputStream(NoCloseOutputStream.wrap(rawBytesOutStream), BufferManager.BUFFER_SIZE)
+                        : rawBytesOutStream
                 );
 
                 final ByteCountInputStream rawBytesInStream = new ByteCountInputStream(rawIn);
@@ -818,17 +818,17 @@ public final class BackupDaemon {
                             try {
                               symLinkTarget = environment.readLink(ffr, filename);
                             } catch (SecurityException err) {
-                              environment.getLogger().logp(Level.SEVERE, getClass().getName(), "backupPass", "SecurityException trying to readlink: "+filename, err);
+                              environment.getLogger().logp(Level.SEVERE, getClass().getName(), "backupPass", "SecurityException trying to readlink: " + filename, err);
                               throw err;
                             } catch (IOException err) {
-                              environment.getLogger().logp(Level.SEVERE, getClass().getName(), "backupPass", "IOException trying to readlink: "+filename, err);
+                              environment.getLogger().logp(Level.SEVERE, getClass().getName(), "backupPass", "IOException trying to readlink: " + filename, err);
                               throw err;
                             }
                           } else {
                             symLinkTarget = null;
                           }
                           boolean isDevice = PosixFile.isBlockDevice(mode) || PosixFile.isCharacterDevice(mode);
-                          long deviceID = isDevice?environment.getDeviceIdentifier(ffr, filename):-1;
+                          long deviceID = isDevice ? environment.getDeviceIdentifier(ffr, filename) : -1;
 
                           out.writeBoolean(true);
                           // Adjust the filename to server formatting
@@ -838,13 +838,13 @@ public final class BackupDaemon {
                           if (PosixFile.isRegularFile(mode)) {
                             out.writeLong(size);
                           }
-                          if (uid<0 || uid>65535) {
-                            environment.getLogger().logp(Level.WARNING, getClass().getName(), "backupPass", null, new IOException("UID out of range, converted to 0, uid="+uid+" and path="+filename));
+                          if (uid < 0 || uid > 65535) {
+                            environment.getLogger().logp(Level.WARNING, getClass().getName(), "backupPass", null, new IOException("UID out of range, converted to 0, uid=" + uid + " and path=" + filename));
                             uid = 0;
                           }
                           out.writeCompressedInt(uid);
-                          if (gid<0 || gid>65535) {
-                            environment.getLogger().logp(Level.WARNING, getClass().getName(), "backupPass", null, new IOException("GID out of range, converted to 0, gid="+gid+" and path="+filename));
+                          if (gid < 0 || gid > 65535) {
+                            environment.getLogger().logp(Level.WARNING, getClass().getName(), "backupPass", null, new IOException("GID out of range, converted to 0, gid=" + gid + " and path=" + filename));
                             gid = 0;
                           }
                           out.writeCompressedInt(gid);
@@ -863,7 +863,7 @@ public final class BackupDaemon {
                         }
                       } catch (FileNotFoundException err) {
                         // Normal because of a dynamic file system
-                        filenames[d]=null;
+                        filenames[d] = null;
                         out.writeBoolean(false);
                       }
                     }
@@ -906,7 +906,7 @@ public final class BackupDaemon {
                             int numChunks;
                             {
                               long numChunksL = chunkingSize >> AOServDaemonProtocol.FAILOVER_FILE_REPLICATION_CHUNK_SIZE_BITS;
-                              if ((chunkingSize & (AOServDaemonProtocol.FAILOVER_FILE_REPLICATION_CHUNK_SIZE-1)) != 0) {
+                              if ((chunkingSize & (AOServDaemonProtocol.FAILOVER_FILE_REPLICATION_CHUNK_SIZE - 1)) != 0) {
                                 numChunksL++;
                               }
                               numChunks = SafeMath.castInt(numChunksL);
@@ -960,7 +960,7 @@ public final class BackupDaemon {
                         result = results[d];
                         if (result == AOServDaemonProtocol.FAILOVER_FILE_REPLICATION_MODIFIED) {
                           if (isDebug) {
-                            logger.logp(Level.FINE, getClass().getName(), "backupPass", (retention>1 ? "Backup: " : "Failover: ") + "File modified: "+filename);
+                            logger.logp(Level.FINE, getClass().getName(), "backupPass", (retention > 1 ? "Backup: " : "Failover: ") + "File modified: " + filename);
                           }
                           updated++;
                         } else if (result == AOServDaemonProtocol.FAILOVER_FILE_REPLICATION_MODIFIED_REQUEST_DATA) {
@@ -968,7 +968,7 @@ public final class BackupDaemon {
                           updated++;
                           try {
                             if (isDebug) {
-                              logger.logp(Level.FINE, getClass().getName(), "backupPass", (retention>1 ? "Backup: " : "Failover: ") + "Sending file contents: "+filename);
+                              logger.logp(Level.FINE, getClass().getName(), "backupPass", (retention > 1 ? "Backup: " : "Failover: ") + "Sending file contents: " + filename);
                             }
                             // Shortcut for 0 length files (don't open for reading)
                             if (environment.getLength(ffr, filename) != 0) {
@@ -1024,7 +1024,7 @@ public final class BackupDaemon {
                           updated++;
                           try {
                             if (isDebug) {
-                              logger.logp(Level.FINE, getClass().getName(), "backupPass", (retention>1 ? "Backup: " : "Failover: ") + "Chunking file contents: "+filename);
+                              logger.logp(Level.FINE, getClass().getName(), "backupPass", (retention > 1 ? "Backup: " : "Failover: ") + "Chunking file contents: " + filename);
                             }
                             final long[] md5Hi = md5His[d];
                             final long[] md5Lo = md5Los[d];
@@ -1063,7 +1063,7 @@ public final class BackupDaemon {
                                     } else {
                                       assert chunkNumber == (numChunks - 1);
                                       // Last chunk may be partial
-                                      chunkSize = SafeMath.castInt(chunkingSizes[d] - (((long)chunkNumber) << AOServDaemonProtocol.FAILOVER_FILE_REPLICATION_CHUNK_SIZE_BITS));
+                                      chunkSize = SafeMath.castInt(chunkingSizes[d] - (((long) chunkNumber) << AOServDaemonProtocol.FAILOVER_FILE_REPLICATION_CHUNK_SIZE_BITS));
                                       assert chunkSize > 0 && chunkSize <= AOServDaemonProtocol.FAILOVER_FILE_REPLICATION_CHUNK_SIZE;
                                     }
                                     if (pos < chunkSize) {
@@ -1078,8 +1078,8 @@ public final class BackupDaemon {
                                       md5.Update(chunkBuffer, 0, chunkSize);
                                       byte[] md5Bytes = md5.Final();
                                       if (
-                                        md5Hi[chunkNumber] != MD5.getMD5Hi(md5Bytes)
-                                        || md5Lo[chunkNumber] != MD5.getMD5Lo(md5Bytes)
+                                          md5Hi[chunkNumber] != MD5.getMD5Hi(md5Bytes)
+                                              || md5Lo[chunkNumber] != MD5.getMD5Lo(md5Bytes)
                                       ) {
                                         // MD5 mismatch, just send data
                                         sendChunkCount++;
@@ -1112,7 +1112,7 @@ public final class BackupDaemon {
                                 }
                               }
                               if (isDebug) {
-                                logger.logp(Level.FINE, getClass().getName(), "backupPass", (retention>1 ? "Backup: " : "Failover: ") + "Chunking file contents: "+filename+": Sent "+sendChunkCount+" out of "+chunkNumber+" chunks");
+                                logger.logp(Level.FINE, getClass().getName(), "backupPass", (retention > 1 ? "Backup: " : "Failover: ") + "Chunking file contents: " + filename + ": Sent " + sendChunkCount + " out of " + chunkNumber + " chunks");
                               }
                             }
                           } catch (FileNotFoundException err) {
@@ -1128,7 +1128,7 @@ public final class BackupDaemon {
                             outgoing.write(AOServDaemonProtocol.DONE);
                           }
                         } else if (result != AOServDaemonProtocol.FAILOVER_FILE_REPLICATION_NO_CHANGE) {
-                          throw new IOException("Unknown result: "+result);
+                          throw new IOException("Unknown result: " + result);
                         }
                       }
                     }
@@ -1172,7 +1172,7 @@ public final class BackupDaemon {
                       return;
                     }
                   }
-                  result=in.read();
+                  result = in.read();
                   if (result != AOServDaemonProtocol.DONE) {
                     if (result == AOServDaemonProtocol.IO_EXCEPTION) {
                       throw new IOException(in.readUTF());
@@ -1184,8 +1184,8 @@ public final class BackupDaemon {
                   }
                 } finally {
                   // Store the bytes transferred
-                  rawBytesOut=rawBytesOutStream.getCount();
-                  rawBytesIn=rawBytesInStream.getCount();
+                  rawBytesOut = rawBytesOutStream.getCount();
+                  rawBytesIn = rawBytesInStream.getCount();
                 }
               } else {
                 if (result == AOServDaemonProtocol.IO_EXCEPTION) {
@@ -1207,7 +1207,7 @@ public final class BackupDaemon {
           for (int c = 0; c < 10; c++) {
             // Try in a loop with delay in case master happens to be restarting
             try {
-              ffr.addFailoverFileLog(startTime, System.currentTimeMillis(), scanned, updated, rawBytesOut+rawBytesIn, isSuccessful);
+              ffr.addFailoverFileLog(startTime, System.currentTimeMillis(), scanned, updated, rawBytesOut + rawBytesIn, isSuccessful);
               break;
             } catch (ThreadDeath td) {
               throw td;
@@ -1259,7 +1259,7 @@ public final class BackupDaemon {
       // Load the environment class as provided on the command line
       BackupEnvironment environment;
       try {
-        environment=(BackupEnvironment)Class.forName(args[0]).getConstructor().newInstance();
+        environment = (BackupEnvironment) Class.forName(args[0]).getConstructor().newInstance();
       } catch (ReflectiveOperationException err) {
         ErrorPrinter.printStackTraces(err, System.err, "environment_classname=" + args[0]);
         System.exit(2);
@@ -1293,13 +1293,13 @@ public final class BackupDaemon {
 
   public static void showUsage() throws IOException {
     @SuppressWarnings("UseOfSystemOutOrSystemErr")
-    TerminalWriter out=new TerminalWriter(new OutputStreamWriter(System.err));
+    TerminalWriter out = new TerminalWriter(new OutputStreamWriter(System.err));
     out.println();
     out.boldOn();
     out.print("SYNOPSIS");
     out.attributesOff();
     out.println();
-    out.println("\t"+BackupDaemon.class.getName()+" {environment_classname}");
+    out.println("\t" + BackupDaemon.class.getName() + " {environment_classname}");
     out.println();
     out.boldOn();
     out.print("DESCRIPTION");
@@ -1309,7 +1309,7 @@ public final class BackupDaemon {
     out.println("\twhile backing-up files as needed.");
     out.println();
     out.println("\tAn environment_classname must be provided.  This must be the fully qualified");
-    out.println("\tclass name of a "+BackupEnvironment.class.getName()+".  One instance");
+    out.println("\tclass name of a " + BackupEnvironment.class.getName() + ".  One instance");
     out.println("\tof this class will be created via the default constructor.");
     out.println();
     out.flush();

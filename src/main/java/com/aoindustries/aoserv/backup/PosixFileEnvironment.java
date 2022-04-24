@@ -43,7 +43,7 @@ import java.util.Map;
  */
 public abstract class PosixFileEnvironment extends FileEnvironment {
 
-  private final Object unixFileCacheLock=new Object();
+  private final Object unixFileCacheLock = new Object();
   private final Map<FileReplication, File> lastFiles = new HashMap<>();
   private final Map<FileReplication, PosixFile> lastPosixFiles = new HashMap<>();
   private final Map<FileReplication, Stat> lastStats = new HashMap<>();

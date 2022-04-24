@@ -56,6 +56,6 @@ public abstract class WindowsEnvironment extends FileEnvironment {
    */
   @Override
   public long getModifyTime(FileReplication ffr, String filename) throws IOException {
-    return (super.getModifyTime(ffr, filename)/1000) * 1000;
+    return (super.getModifyTime(ffr, filename) / 1000) * 1000;
   }
 }

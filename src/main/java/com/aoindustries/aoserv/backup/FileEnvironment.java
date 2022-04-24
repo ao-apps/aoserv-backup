@@ -52,7 +52,7 @@ import java.util.Set;
  */
 public abstract class FileEnvironment implements BackupEnvironment {
 
-  private final Object fileCacheLock=new Object();
+  private final Object fileCacheLock = new Object();
   private final Map<FileReplication, String> lastFilenames = new HashMap<>();
   private final Map<FileReplication, File> lastFiles = new HashMap<>();
 
@@ -75,12 +75,12 @@ public abstract class FileEnvironment implements BackupEnvironment {
 
   @Override
   public long getStatMode(FileReplication ffr, String filename) throws IOException {
-    File file=getFile(ffr, filename);
+    File file = getFile(ffr, filename);
     if (file.isDirectory()) {
-      return PosixFile.IS_DIRECTORY|0750;
+      return PosixFile.IS_DIRECTORY | 0750;
     }
     if (file.isFile()) {
-      return PosixFile.IS_REGULAR_FILE|0640;
+      return PosixFile.IS_REGULAR_FILE | 0640;
     }
     return 0;
   }
@@ -166,8 +166,8 @@ public abstract class FileEnvironment implements BackupEnvironment {
     Set<String> requiredFilenames = new LinkedHashSet<>();
     for (FileReplicationSetting setting : ffr.getFileBackupSettings()) {
       String path = setting.getPath();
-      if (path.length()>1 && path.endsWith(File.separator)) {
-        path = path.substring(0, path.length()-1);
+      if (path.length() > 1 && path.endsWith(File.separator)) {
+        path = path.substring(0, path.length() - 1);
       }
       if (setting.isRequired()) {
         requiredFilenames.add(path);
@@ -184,8 +184,8 @@ public abstract class FileEnvironment implements BackupEnvironment {
 
     for (FileReplicationSetting setting : ffr.getFileBackupSettings()) {
       filesystemRules.put(
-        setting.getPath(),
-        setting.getBackupEnabled() ? FilesystemIteratorRule.OK : FilesystemIteratorRule.SKIP
+          setting.getPath(),
+          setting.getBackupEnabled() ? FilesystemIteratorRule.OK : FilesystemIteratorRule.SKIP
       );
     }
 

@@ -38,8 +38,8 @@ public class BackupFileSetting {
   private boolean backupEnabled;
 
   public void clear() {
-    filename=null;
-    backupEnabled=false;
+    filename = null;
+    backupEnabled = false;
   }
 
   public String getFilename() {
@@ -51,14 +51,14 @@ public class BackupFileSetting {
   }
 
   public void setSettings(
-    boolean backupEnabled
+      boolean backupEnabled
   ) {
-    this.backupEnabled=backupEnabled;
+    this.backupEnabled = backupEnabled;
   }
 
   public void setFilename(
-    String filename
+      String filename
   ) {
-    this.filename=filename;
+    this.filename = filename;
   }
 }
