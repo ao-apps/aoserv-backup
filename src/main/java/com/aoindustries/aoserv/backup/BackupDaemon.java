@@ -79,7 +79,7 @@ public final class BackupDaemon {
 
   private final BackupEnvironment environment;
 
-  private boolean isStarted = false;
+  private boolean isStarted;
   private final Map<FileReplication, BackupDaemonThread> threads = new HashMap<>();
 
   public BackupDaemon(BackupEnvironment environment) {
