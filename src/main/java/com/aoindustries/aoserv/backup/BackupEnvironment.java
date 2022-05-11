@@ -24,7 +24,7 @@
 package com.aoindustries.aoserv.backup;
 
 import com.aoapps.net.InetAddress;
-import com.aoindustries.aoserv.client.AOServConnector;
+import com.aoindustries.aoserv.client.AoservConnector;
 import com.aoindustries.aoserv.client.backup.FileReplication;
 import com.aoindustries.aoserv.client.mysql.Server;
 import com.aoindustries.aoserv.client.net.Host;
@@ -39,15 +39,16 @@ import java.util.logging.Logger;
 
 /**
  * A <code>BackupEnvironment</code> tells the <code>BackupDaemon</code> how to run.
- *
+ * <p>
  * All paths are represented as a <code>String</code> to allow anything to be backed-up, not just local files.
+ * </p>
  *
  * @author  AO Industries, Inc.
  */
 public interface BackupEnvironment {
 
   /**
-   * Gets the stat mode (or a generated and equivilent one) for a file.
+   * Gets the stat mode (or a generated and equivalent one) for a file.
    */
   long getStatMode(FileReplication ffr, String filename) throws IOException;
 
@@ -57,49 +58,49 @@ public interface BackupEnvironment {
   String[] getDirectoryList(FileReplication ffr, String filename) throws IOException;
 
   /**
-   * Gets the user ID
+   * Gets the user ID.
    */
   int getUid(FileReplication ffr, String filename) throws IOException;
 
   /**
-   * Gets the group ID
+   * Gets the group ID.
    */
   int getGid(FileReplication ffr, String filename) throws IOException;
 
   /**
-   * Gets the modified time
+   * Gets the modified time.
    */
   long getModifyTime(FileReplication ffr, String filename) throws IOException;
 
   /**
-   * Gets the length of the file
+   * Gets the length of the file.
    */
   long getLength(FileReplication ffr, String filename) throws IOException;
 
   /**
-   * Reads a symbolic link
+   * Reads a symbolic link.
    */
   String readLink(FileReplication ffr, String filename) throws IOException;
 
   /**
-   * Gets the device file major and minor
+   * Gets the device file major and minor.
    */
   long getDeviceIdentifier(FileReplication ffr, String filename) throws IOException;
 
   /**
-   * Gets a stream reading the file
+   * Gets a stream reading the file.
    */
   InputStream getInputStream(FileReplication ffr, String filename) throws IOException;
 
   /**
-   * Gets the name of a file (the part after the last slash)
+   * Gets the name of a file (the part after the last slash).
    */
   String getNameOfFile(FileReplication ffr, String filename);
 
   /**
    * Gets the connection to the master server.
    */
-  AOServConnector getConnector() throws IOException, SQLException;
+  AoservConnector getConnector() throws IOException, SQLException;
 
   /**
    * Gets the host this process is running on.
@@ -115,8 +116,9 @@ public interface BackupEnvironment {
   /**
    * Called right before a backup pass begins.
    * Implementations should call super.preBackup first.
-   *
+   * <p>
    * The process is:
+   * </p>
    * <ol>
    *   <li>preBackup</li>
    *   <li>init</li>
@@ -168,25 +170,25 @@ public interface BackupEnvironment {
   /**
    * Gets the default source IP address or <code>InetAddress.UNSPECIFIED</code> to use the system default.
    */
-  InetAddress getDefaultSourceIPAddress() throws IOException, SQLException;
+  InetAddress getDefaultSourceIpAddress() throws IOException, SQLException;
 
   /**
    * Gets the list of MySQL server instance names that are being replicated.
    * This is only used for failover mode (retention == 1), and should only
    * be used for a replication that includes MySQL replication (Server only)
    *
-   * @see  #getReplicatedMySQLMinorVersions(FileReplication)
+   * @see  #getReplicatedMysqlMinorVersions(FileReplication)
    */
-  List<Server.Name> getReplicatedMySQLServers(FileReplication ffr) throws IOException, SQLException;
+  List<Server.Name> getReplicatedMysqlServers(FileReplication ffr) throws IOException, SQLException;
 
   /**
-   * Gets the list of MySQL server versions (in the same order as the list returned by <code>getReplicatedMySQLServers</code>.
+   * Gets the list of MySQL server versions (in the same order as the list returned by <code>getReplicatedMysqlServers</code>.
    * This is only used for failover mode (retention == 1), and should only
    * be used for a replication that includes MySQL replication (Server only)
    *
-   * @see  #getReplicatedMySQLServers(FileReplication)
+   * @see  #getReplicatedMysqlServers(FileReplication)
    */
-  List<String> getReplicatedMySQLMinorVersions(FileReplication ffr) throws IOException, SQLException;
+  List<String> getReplicatedMysqlMinorVersions(FileReplication ffr) throws IOException, SQLException;
 
   /**
    * A fast pseudo-random number generator for non-cryptographic purposes.

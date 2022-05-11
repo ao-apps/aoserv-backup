@@ -31,6 +31,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
+ * Mac OS environment.
+ *
  * @author  AO Industries, Inc.
  */
 public abstract class MacOsXEnvironment extends FileEnvironment {

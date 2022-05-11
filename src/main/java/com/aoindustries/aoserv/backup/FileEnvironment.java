@@ -27,7 +27,7 @@ import com.aoapps.hodgepodge.io.FilesystemIterator;
 import com.aoapps.hodgepodge.io.FilesystemIteratorRule;
 import com.aoapps.io.posix.PosixFile;
 import com.aoapps.net.InetAddress;
-import com.aoindustries.aoserv.client.AOServConnector;
+import com.aoindustries.aoserv.client.AoservConnector;
 import com.aoindustries.aoserv.client.backup.FileReplication;
 import com.aoindustries.aoserv.client.backup.FileReplicationSetting;
 import com.aoindustries.aoserv.client.mysql.Server;
@@ -206,29 +206,29 @@ public abstract class FileEnvironment implements BackupEnvironment {
   protected abstract Map<String, FilesystemIteratorRule> getFilesystemIteratorPrefixRules(FileReplication ffr) throws IOException, SQLException;
 
   @Override
-  public InetAddress getDefaultSourceIPAddress() throws IOException, SQLException {
+  public InetAddress getDefaultSourceIpAddress() throws IOException, SQLException {
     return InetAddress.UNSPECIFIED_IPV4;
   }
 
   @Override
-  public List<Server.Name> getReplicatedMySQLServers(FileReplication ffr) throws IOException, SQLException {
+  public List<Server.Name> getReplicatedMysqlServers(FileReplication ffr) throws IOException, SQLException {
     return Collections.emptyList();
   }
 
   @Override
-  public List<String> getReplicatedMySQLMinorVersions(FileReplication ffr) throws IOException, SQLException {
+  public List<String> getReplicatedMysqlMinorVersions(FileReplication ffr) throws IOException, SQLException {
     return Collections.emptyList();
   }
 
   /**
    * {@inheritDoc}
    * <p>
-   * Uses the random source from {@link AOServConnector#getFastRandom()}.
+   * Uses the random source from {@link AoservConnector#getFastRandom()}.
    * </p>
    */
   @Override
   public Random getFastRandom() {
-    return AOServConnector.getFastRandom();
+    return AoservConnector.getFastRandom();
   }
 
   @Override

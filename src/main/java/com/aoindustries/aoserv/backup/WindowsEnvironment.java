@@ -31,6 +31,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
+ * Windows environment.
+ *
  * @author  AO Industries, Inc.
  */
 public abstract class WindowsEnvironment extends FileEnvironment {
