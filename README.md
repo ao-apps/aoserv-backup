@@ -21,7 +21,7 @@ Backup client for the [AOServ Platform](https://aoindustries.com/aoserv/).
 * [Project Home](https://aoindustries.com/aoserv/backup/)
 * [Changelog](https://aoindustries.com/aoserv/backup/changelog)
 * [API Docs](https://aoindustries.com/aoserv/backup/apidocs/)
-* [Maven Central Repository](https://central.sonatype.com/search?namespace=com.aoindustries&q=a%3Aaoserv-backup)
+* [Maven Central Repository](https://central.sonatype.com/artifact/com.aoindustries/aoserv-backup)
 * [GitHub](https://github.com/ao-apps/aoserv-backup)
 
 ## Contact Us
