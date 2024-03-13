@@ -1,6 +1,6 @@
 /*
  * aoserv-backup - Backup client for the AOServ Platform.
- * Copyright (C) 2001-2013, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022  AO Industries, Inc.
+ * Copyright (C) 2001-2013, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2024  AO Industries, Inc.
  *     support@aoindustries.com
  *     7262 Bull Pen Cir
  *     Mobile, AL 36695
@@ -423,8 +423,8 @@ public final class BackupDaemon {
             } else {
               long currentTime = System.currentTimeMillis();
               gcal.setTimeInMillis(currentTime);
-              int currentHour = gcal.get(Calendar.HOUR_OF_DAY);
-              int currentMinute = gcal.get(Calendar.MINUTE);
+              final int currentHour = gcal.get(Calendar.HOUR_OF_DAY);
+              final int currentMinute = gcal.get(Calendar.MINUTE);
 
               if (isDebug) {
                 logger.logp(Level.FINE, getClass().getName(), "run", (retention != 1 ? "Backup: " : "Failover: ") + "newFFR=" + newReplication);
@@ -731,7 +731,7 @@ public final class BackupDaemon {
               // Start the replication
               StreamableOutput rawOut = daemonConn.getRequestOut(AoservDaemonProtocol.FAILOVER_FILE_REPLICATION);
 
-              MD5 md5 = useCompression ? new MD5() : null;
+              final MD5 md5 = useCompression ? new MD5() : null;
 
               rawOut.writeLong(daemonAccess.getKey());
               rawOut.writeBoolean(useCompression);
