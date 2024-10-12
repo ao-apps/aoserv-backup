@@ -1,6 +1,6 @@
 /*
  * aoserv-backup - Backup client for the AOServ Platform.
- * Copyright (C) 2003-2009, 2018, 2019, 2020, 2021, 2022  AO Industries, Inc.
+ * Copyright (C) 2003-2009, 2018, 2019, 2020, 2021, 2022, 2024  AO Industries, Inc.
  *     support@aoindustries.com
  *     7262 Bull Pen Cir
  *     Mobile, AL 36695
@@ -48,6 +48,9 @@ public abstract class PosixFileEnvironment extends FileEnvironment {
   private final Map<FileReplication, PosixFile> lastPosixFiles = new HashMap<>();
   private final Map<FileReplication, Stat> lastStats = new HashMap<>();
 
+  /**
+   * Gets the POSIX file for the given path.
+   */
   protected PosixFile getPosixFile(FileReplication ffr, String filename) throws IOException {
     File file = getFile(ffr, filename);
     synchronized (unixFileCacheLock) {
@@ -64,6 +67,9 @@ public abstract class PosixFileEnvironment extends FileEnvironment {
     }
   }
 
+  /**
+   * Stats the given path.
+   */
   protected Stat getStat(FileReplication ffr, String filename) throws IOException {
     if (filename == null) {
       throw new AssertionError("filename is null");

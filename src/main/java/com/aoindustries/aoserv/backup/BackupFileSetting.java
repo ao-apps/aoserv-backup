@@ -1,6 +1,6 @@
 /*
  * aoserv-backup - Backup client for the AOServ Platform.
- * Copyright (C) 2003-2009, 2018, 2019, 2020, 2022  AO Industries, Inc.
+ * Copyright (C) 2003-2009, 2018, 2019, 2020, 2022, 2024  AO Industries, Inc.
  *     support@aoindustries.com
  *     7262 Bull Pen Cir
  *     Mobile, AL 36695
@@ -37,6 +37,9 @@ public class BackupFileSetting {
   private String filename;
   private boolean backupEnabled;
 
+  /**
+   * Clears the settings.
+   */
   public void clear() {
     filename = null;
     backupEnabled = false;

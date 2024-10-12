@@ -1,6 +1,6 @@
 /*
  * aoserv-backup - Backup client for the AOServ Platform.
- * Copyright (C) 2003-2013, 2017, 2018, 2019, 2020, 2021, 2022  AO Industries, Inc.
+ * Copyright (C) 2003-2013, 2017, 2018, 2019, 2020, 2021, 2022, 2024  AO Industries, Inc.
  *     support@aoindustries.com
  *     7262 Bull Pen Cir
  *     Mobile, AL 36695
@@ -56,6 +56,9 @@ public abstract class FileEnvironment implements BackupEnvironment {
   private final Map<FileReplication, String> lastFilenames = new HashMap<>();
   private final Map<FileReplication, File> lastFiles = new HashMap<>();
 
+  /**
+   * Gets the file for the given path.
+   */
   protected File getFile(FileReplication ffr, String filename) {
     if (filename == null) {
       throw new AssertionError("filename is null");

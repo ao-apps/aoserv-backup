@@ -82,6 +82,9 @@ public final class BackupDaemon {
   private boolean isStarted;
   private final Map<FileReplication, BackupDaemonThread> threads = new HashMap<>();
 
+  /**
+   * Creates a new {@link BackupDaemon}.
+   */
   public BackupDaemon(BackupEnvironment environment) {
     this.environment = environment;
   }
