@@ -225,9 +225,8 @@ public abstract class FileEnvironment implements BackupEnvironment {
 
   /**
    * {@inheritDoc}
-   * <p>
-   * Uses the random source from {@link AoservConnector#getFastRandom()}.
-   * </p>
+   *
+   * <p>Uses the random source from {@link AoservConnector#getFastRandom()}.</p>
    */
   @Override
   public Random getFastRandom() {

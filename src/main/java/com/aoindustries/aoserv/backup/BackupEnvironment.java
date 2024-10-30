@@ -1,6 +1,6 @@
 /*
  * aoserv-backup - Backup client for the AOServ Platform.
- * Copyright (C) 2003-2013, 2017, 2018, 2019, 2021, 2022  AO Industries, Inc.
+ * Copyright (C) 2003-2013, 2017, 2018, 2019, 2021, 2022, 2024  AO Industries, Inc.
  *     support@aoindustries.com
  *     7262 Bull Pen Cir
  *     Mobile, AL 36695
@@ -39,9 +39,8 @@ import java.util.logging.Logger;
 
 /**
  * A <code>BackupEnvironment</code> tells the <code>BackupDaemon</code> how to run.
- * <p>
- * All paths are represented as a <code>String</code> to allow anything to be backed-up, not just local files.
- * </p>
+ *
+ * <p>All paths are represented as a <code>String</code> to allow anything to be backed-up, not just local files.</p>
  *
  * @author  AO Industries, Inc.
  */
@@ -116,9 +115,9 @@ public interface BackupEnvironment {
   /**
    * Called right before a backup pass begins.
    * Implementations should call super.preBackup first.
-   * <p>
-   * The process is:
-   * </p>
+   *
+   * <p>The process is:</p>
+   *
    * <ol>
    *   <li>preBackup</li>
    *   <li>init</li>
@@ -192,11 +191,10 @@ public interface BackupEnvironment {
 
   /**
    * A fast pseudo-random number generator for non-cryptographic purposes.
-   * <p>
-   * Gets a Random source for the backup daemon.  This does not need to be cryptographically strong
+   *
+   * <p>Gets a Random source for the backup daemon.  This does not need to be cryptographically strong
    * because it is only used to randomize some sleep times to distribute load on the server
-   * processes.
-   * </p>
+   * processes.</p>
    */
   Random getFastRandom();
 
