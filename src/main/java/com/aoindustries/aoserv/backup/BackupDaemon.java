@@ -1,6 +1,6 @@
 /*
  * aoserv-backup - Backup client for the AOServ Platform.
- * Copyright (C) 2001-2013, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2024  AO Industries, Inc.
+ * Copyright (C) 2001-2013, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2024, 2025  AO Industries, Inc.
  *     support@aoindustries.com
  *     7262 Bull Pen Cir
  *     Mobile, AL 36695
@@ -1063,15 +1063,7 @@ public final class BackupDaemon {
                                   }
                                 }
                                 // Read fully one chunk or to end of file
-                                // Java 9: readNBytes
-                                int pos = 0;
-                                do {
-                                  int ret = fileIn.read(chunkBuffer, pos, AoservDaemonProtocol.FAILOVER_FILE_REPLICATION_CHUNK_SIZE - pos);
-                                  if (ret == -1) {
-                                    break;
-                                  }
-                                  pos += ret;
-                                } while (pos < AoservDaemonProtocol.FAILOVER_FILE_REPLICATION_CHUNK_SIZE);
+                                int pos = fileIn.readNBytes(chunkBuffer, 0, AoservDaemonProtocol.FAILOVER_FILE_REPLICATION_CHUNK_SIZE);
                                 synchronized (this) {
                                   if (currentThread != thread || currentThread.isInterrupted()) {
                                     return;
