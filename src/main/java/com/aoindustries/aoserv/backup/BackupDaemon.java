@@ -927,13 +927,13 @@ public final class BackupDaemon {
                             hasRequestData = true;
                             long chunkingSize = in.readLong();
                             int numChunks;
-                              {
-                                long numChunksL = chunkingSize >> AoservDaemonProtocol.FAILOVER_FILE_REPLICATION_CHUNK_SIZE_BITS;
-                                if ((chunkingSize & (AoservDaemonProtocol.FAILOVER_FILE_REPLICATION_CHUNK_SIZE - 1)) != 0) {
-                                  numChunksL++;
-                                }
-                                numChunks = SafeMath.castInt(numChunksL);
+                            {
+                              long numChunksL = chunkingSize >> AoservDaemonProtocol.FAILOVER_FILE_REPLICATION_CHUNK_SIZE_BITS;
+                              if ((chunkingSize & (AoservDaemonProtocol.FAILOVER_FILE_REPLICATION_CHUNK_SIZE - 1)) != 0) {
+                                numChunksL++;
                               }
+                              numChunks = SafeMath.castInt(numChunksL);
+                            }
                             long[] md5Hi = new long[numChunks];
                             long[] md5Lo = new long[numChunks];
                             for (int e = 0; e < numChunks; e++) {
