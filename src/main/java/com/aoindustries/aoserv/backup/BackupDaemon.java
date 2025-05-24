@@ -545,7 +545,7 @@ public final class BackupDaemon {
                         // Don't double-check the same minute (in case sleeps inaccurate or time reset)
                         lastCheckHour != currentHour
                             || lastCheckMinute != currentMinute
-                    )
+                      )
                 ) {
                   CHECK_LOOP:
                   while (true) {
