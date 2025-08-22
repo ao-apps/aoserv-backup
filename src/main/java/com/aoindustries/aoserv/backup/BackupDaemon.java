@@ -141,7 +141,7 @@ public final class BackupDaemon {
       Host thisHost = environment.getThisHost();
       Logger logger = environment.getLogger();
       boolean isDebug = logger.isLoggable(Level.FINE);
-      //AoservConnector conn = environment.getConnector();
+      // AoservConnector conn = environment.getConnector();
       List<FileReplication> removedList = new ArrayList<>(threads.keySet());
       for (FileReplication ffr : thisHost.getFailoverFileReplications()) {
         removedList.remove(ffr);
@@ -280,7 +280,7 @@ public final class BackupDaemon {
         if (requiredFilename.endsWith(File.separator)) {
           requiredFilename = requiredFilename.substring(0, requiredFilename.length() - 1);
         }
-        //System.err.println("DEBUG: BackupDaemon: filename="+filename);
+        // System.err.println("DEBUG: BackupDaemon: filename="+filename);
         remainingRequiredFilenames.remove(requiredFilename);
         filenames[c++] = filename;
       }
@@ -386,7 +386,7 @@ public final class BackupDaemon {
                 // Sleep some before checking again, this is randomized so schedules don't start exactly as scheduled
                 // But they should start within 5 minutes of the schedule.  This is because many people
                 // may schedule for certain times (like 6:00 am exactly)
-                //long sleepyTime = 60L * 1000 + random.nextInt(4 * 60 * 1000);
+                // long sleepyTime = 60L * 1000 + random.nextInt(4 * 60 * 1000);
                 long sleepyTime = 55L * 1000;
                 if (isDebug) {
                   logger.logp(Level.FINE, getClass().getName(), "run", (retention != 1 ? "Backup: " : "Failover: ")
@@ -532,10 +532,10 @@ public final class BackupDaemon {
                       }
                       break;
                     }
-                    //} else {
-                    //  if (environment.isDebugEnabled()) {
-                    //    environment.debug((retention != 1 ? "Backup: " : "Failover: ") + "Skipping disabled schedule time: scheduleHour="+scheduleHour+" and scheduleMinute="+scheduleMinute);
-                    //  }
+                    // } else {
+                    //   if (environment.isDebugEnabled()) {
+                    //     environment.debug((retention != 1 ? "Backup: " : "Failover: ") + "Skipping disabled schedule time: scheduleHour="+scheduleHour+" and scheduleMinute="+scheduleMinute);
+                    //   }
                   }
                 }
                 if (
@@ -608,7 +608,7 @@ public final class BackupDaemon {
                       return;
                     }
                   }
-                  //Randomized sleep interval to reduce master load on startup (5-15 minutes)
+                  // Randomized sleep interval to reduce master load on startup (5-15 minutes)
                   int sleepyTime = 5 * 60 * 1000 + fastRandom.nextInt(10 * 60 * 1000);
                   if (isDebug) {
                     logger.logp(Level.FINE, getClass().getName(), "run", (retention != 1 ? "Backup: " : "Failover: ") + "Sleeping for " + sleepyTime + " milliseconds after an error");
@@ -633,7 +633,7 @@ public final class BackupDaemon {
               return;
             }
           }
-          //Randomized sleep interval to reduce master load on startup (5-15 minutes)
+          // Randomized sleep interval to reduce master load on startup (5-15 minutes)
           int sleepyTime = 5 * 60 * 1000 + fastRandom.nextInt(10 * 60 * 1000);
           if (isDebug) {
             logger.logp(Level.FINE, getClass().getName(), "run", "Sleeping for " + sleepyTime + " milliseconds after an error");
@@ -823,9 +823,9 @@ public final class BackupDaemon {
                           final int gid = environment.getGid(ffr, filename);
                           final boolean isSymLink = PosixFile.isSymLink(mode);
                           final long modifyTime = isSymLink ? -1 : environment.getModifyTime(ffr, filename);
-                          //if (modifyTime<1000 && !isSymLink && log.isWarnEnabled()) {
-                          //  log.warn("Non-symlink modifyTime<1000: "+filename+": "+modifyTime);
-                          //}
+                          // if (modifyTime<1000 && !isSymLink && log.isWarnEnabled()) {
+                          //   log.warn("Non-symlink modifyTime<1000: "+filename+": "+modifyTime);
+                          // }
                           final String symLinkTarget;
                           if (isSymLink) {
                             try {
@@ -962,14 +962,14 @@ public final class BackupDaemon {
                     }
 
                     // Process the results
-                    //DeflaterOutputStream deflaterOut;
+                    // DeflaterOutputStream deflaterOut;
                     final StreamableOutput outgoing;
 
                     if (hasRequestData) {
-                      //deflaterOut = null;
+                      // deflaterOut = null;
                       outgoing = out;
                     } else {
-                      //deflaterOut = null;
+                      // deflaterOut = null;
                       outgoing = null;
                     }
                     for (int d = 0; d < batchSize; d++) {
