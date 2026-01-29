@@ -132,8 +132,8 @@ public interface BackupEnvironment {
    * <code>cleanup()</code> will also be called in a finally block.
    * Implementations should call super.init first.
    *
-   * @see  #cleanup(FileReplication)
-   * @see  #preBackup(FileReplication)
+   * @see  BackupEnvironment#cleanup(FileReplication)
+   * @see  BackupEnvironment#preBackup(FileReplication)
    */
   void init(FileReplication ffr) throws IOException, SQLException;
 
@@ -142,8 +142,8 @@ public interface BackupEnvironment {
    * will be obtained from the environment after this is called.
    * Implementations should call super.cleanup in a finally block.
    *
-   * @see  #init(FileReplication)
-   * @see  #preBackup(FileReplication)
+   * @see  BackupEnvironment#init(FileReplication)
+   * @see  BackupEnvironment#preBackup(FileReplication)
    */
   void cleanup(FileReplication ffr) throws IOException, SQLException;
 
@@ -151,7 +151,7 @@ public interface BackupEnvironment {
    * Called right after a backup pass ends.
    * Implementations should call super.postBackup last.
    *
-   * @see  #preBackup(FileReplication)
+   * @see  BackupEnvironment#preBackup(FileReplication)
    */
   void postBackup(FileReplication ffr) throws IOException, SQLException;
 
@@ -176,7 +176,7 @@ public interface BackupEnvironment {
    * This is only used for failover mode (retention == 1), and should only
    * be used for a replication that includes MySQL replication (Server only)
    *
-   * @see  #getReplicatedMysqlMinorVersions(FileReplication)
+   * @see  BackupEnvironment#getReplicatedMysqlMinorVersions(FileReplication)
    */
   List<Server.Name> getReplicatedMysqlServers(FileReplication ffr) throws IOException, SQLException;
 
@@ -185,7 +185,7 @@ public interface BackupEnvironment {
    * This is only used for failover mode (retention == 1), and should only
    * be used for a replication that includes MySQL replication (Server only)
    *
-   * @see  #getReplicatedMysqlServers(FileReplication)
+   * @see  BackupEnvironment#getReplicatedMysqlServers(FileReplication)
    */
   List<String> getReplicatedMysqlMinorVersions(FileReplication ffr) throws IOException, SQLException;
 
