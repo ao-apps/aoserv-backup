@@ -1,6 +1,6 @@
 /*
  * aoserv-backup - Backup client for the AOServ Platform.
- * Copyright (C) 2001-2013, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2024, 2025  AO Industries, Inc.
+ * Copyright (C) 2001-2013, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2024, 2025, 2026  AO Industries, Inc.
  *     support@aoindustries.com
  *     7262 Bull Pen Cir
  *     Mobile, AL 36695
@@ -118,8 +118,6 @@ public final class BackupDaemon {
           try {
             verifyThreads();
             break;
-          } catch (ThreadDeath td) {
-            throw td;
           } catch (Throwable t) {
             environment.getLogger().logp(Level.SEVERE, getClass().getName(), "run", null, t);
             try {
@@ -236,8 +234,6 @@ public final class BackupDaemon {
         if (newFfr != null) {
           return newFfr.getBitRate();
         }
-      } catch (ThreadDeath td) {
-        throw td;
       } catch (Throwable t) {
         environment.getLogger().logp(Level.SEVERE, DynamicBitRateProvider.class.getName(), "getBitRate", null, t);
       }
@@ -599,8 +595,6 @@ public final class BackupDaemon {
                     runNow = false;
                   }
                   lastPassSuccessful = true;
-                } catch (ThreadDeath td) {
-                  throw td;
                 } catch (Throwable t) {
                   environment.getLogger().logp(Level.SEVERE, getClass().getName(), "run", null, t);
                   synchronized (this) {
@@ -624,8 +618,6 @@ public final class BackupDaemon {
               }
             }
           }
-        } catch (ThreadDeath td) {
-          throw td;
         } catch (Throwable t) {
           environment.getLogger().logp(Level.SEVERE, getClass().getName(), "run", null, t);
           synchronized (this) {
@@ -1227,8 +1219,6 @@ public final class BackupDaemon {
             try {
               ffr.addFailoverFileLog(startTime, System.currentTimeMillis(), scanned, updated, rawBytesOut + rawBytesIn, isSuccessful);
               break;
-            } catch (ThreadDeath td) {
-              throw td;
             } catch (Throwable t) {
               if (c >= 10) {
                 environment.getLogger().logp(Level.SEVERE, getClass().getName(), "backupPass", "Error adding failover file log, giving up", t);
@@ -1291,8 +1281,6 @@ public final class BackupDaemon {
           BackupDaemon daemon = new BackupDaemon(environment);
           daemon.start();
           done = true;
-        } catch (ThreadDeath td) {
-          throw td;
         } catch (Throwable t) {
           Logger logger = environment.getLogger();
           logger.logp(Level.SEVERE, BackupDaemon.class.getName(), "main", null, t);
