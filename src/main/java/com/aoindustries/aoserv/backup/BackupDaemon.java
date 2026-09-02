@@ -884,11 +884,11 @@ public final class BackupDaemon {
                     }
                     out.flush();
                     // Recreate the compressed stream after flush because GZIPOutputStream is broken.
-                    /*if (useCompression) {
-                      out = new StreamableOutput(
-                        new AutoFinishGZIPOutputStream(NoCloseOutputStream.wrap(rawBytesOutStream), BufferManager.BUFFER_SIZE)
-                      );
-                    }*/
+                    // if (useCompression) {
+                    //   out = new StreamableOutput(
+                    //     new AutoFinishGZIPOutputStream(NoCloseOutputStream.wrap(rawBytesOutStream), BufferManager.BUFFER_SIZE)
+                    //   );
+                    // }
                     synchronized (this) {
                       if (currentThread != thread || currentThread.isInterrupted()) {
                         return;
@@ -1172,11 +1172,11 @@ public final class BackupDaemon {
                   out.writeCompressedInt(-1);
                   out.flush();
                   // Recreate the compressed stream after flush because GZIPOutputStream is broken.
-                  /*if (useCompression) {
-                    out = new StreamableOutput(
-                      new AutoFinishGZIPOutputStream(NoCloseOutputStream.wrap(rawBytesOutStream), BufferManager.BUFFER_SIZE)
-                    );
-                  }*/
+                  // if (useCompression) {
+                  //   out = new StreamableOutput(
+                  //     new AutoFinishGZIPOutputStream(NoCloseOutputStream.wrap(rawBytesOutStream), BufferManager.BUFFER_SIZE)
+                  //   );
+                  // }
                   synchronized (this) {
                     if (currentThread != thread || currentThread.isInterrupted()) {
                       return;
