@@ -95,11 +95,11 @@ public final class BackupDaemon {
       try {
         verifyThreads();
       } catch (InterruptedException err) {
-        environment.getLogger().logp(Level.WARNING, getClass().getName(), "tableUpdated", null, err);
+        environment.getLogger().logp(Level.WARNING, getClass().getName(), "tableUpdated", "TODO: message here", err);
         // Restore the interrupted status
         Thread.currentThread().interrupt();
       } catch (IOException | SQLException err) {
-        environment.getLogger().logp(Level.SEVERE, getClass().getName(), "tableUpdated", null, err);
+        environment.getLogger().logp(Level.SEVERE, getClass().getName(), "tableUpdated", "TODO: message here", err);
       }
     }
   };
@@ -119,11 +119,11 @@ public final class BackupDaemon {
             verifyThreads();
             break;
           } catch (Throwable t) {
-            environment.getLogger().logp(Level.SEVERE, getClass().getName(), "run", null, t);
+            environment.getLogger().logp(Level.SEVERE, getClass().getName(), "run", "TODO: message here", t);
             try {
               Thread.sleep(60000);
             } catch (InterruptedException err2) {
-              environment.getLogger().logp(Level.WARNING, getClass().getName(), "run", null, err2);
+              environment.getLogger().logp(Level.WARNING, getClass().getName(), "run", "TODO: message here", err2);
               // Restore the interrupted status
               Thread.currentThread().interrupt();
             }
@@ -195,7 +195,7 @@ public final class BackupDaemon {
           entry.getValue().join();
         }
       } catch (InterruptedException err) {
-        environment.getLogger().logp(Level.WARNING, getClass().getName(), "stop", null, err);
+        environment.getLogger().logp(Level.WARNING, getClass().getName(), "stop", "TODO: message here", err);
         // Restore the interrupted status
         Thread.currentThread().interrupt();
       }
@@ -235,7 +235,7 @@ public final class BackupDaemon {
           return newFfr.getBitRate();
         }
       } catch (Throwable t) {
-        environment.getLogger().logp(Level.SEVERE, DynamicBitRateProvider.class.getName(), "getBitRate", null, t);
+        environment.getLogger().logp(Level.SEVERE, DynamicBitRateProvider.class.getName(), "getBitRate", "TODO: message here", t);
       }
       return originalFfr.getBitRate();
     }
@@ -596,7 +596,7 @@ public final class BackupDaemon {
                   }
                   lastPassSuccessful = true;
                 } catch (Throwable t) {
-                  environment.getLogger().logp(Level.SEVERE, getClass().getName(), "run", null, t);
+                  environment.getLogger().logp(Level.SEVERE, getClass().getName(), "run", "TODO: message here", t);
                   synchronized (this) {
                     if (currentThread != thread || currentThread.isInterrupted()) {
                       return;
@@ -619,7 +619,7 @@ public final class BackupDaemon {
             }
           }
         } catch (Throwable t) {
-          environment.getLogger().logp(Level.SEVERE, getClass().getName(), "run", null, t);
+          environment.getLogger().logp(Level.SEVERE, getClass().getName(), "run", "TODO: message here", t);
           synchronized (this) {
             if (currentThread != thread || currentThread.isInterrupted()) {
               return;
@@ -847,7 +847,7 @@ public final class BackupDaemon {
                           }
                           final int sendUid;
                           if (uid < 0 || uid > 65535) {
-                            environment.getLogger().logp(Level.WARNING, getClass().getName(), "backupPass", null,
+                            environment.getLogger().logp(Level.WARNING, getClass().getName(), "backupPass", "TODO: message here",
                                 new IOException("UID out of range, converted to 0, uid=" + uid + " and path=" + filename));
                             sendUid = 0;
                           } else {
@@ -856,7 +856,7 @@ public final class BackupDaemon {
                           out.writeCompressedInt(sendUid);
                           final int sendGid;
                           if (gid < 0 || gid > 65535) {
-                            environment.getLogger().logp(Level.WARNING, getClass().getName(), "backupPass", null,
+                            environment.getLogger().logp(Level.WARNING, getClass().getName(), "backupPass", "TODO: message here",
                                 new IOException("GID out of range, converted to 0, gid=" + gid + " and path=" + filename));
                             sendGid = 0;
                           } else {
@@ -1227,7 +1227,7 @@ public final class BackupDaemon {
                 try {
                   Thread.sleep(60L * 1000);
                 } catch (InterruptedException err2) {
-                  environment.getLogger().logp(Level.WARNING, getClass().getName(), "backupPass", null, err2);
+                  environment.getLogger().logp(Level.WARNING, getClass().getName(), "backupPass", "TODO: message here", err2);
                   // Restore the interrupted status
                   currentThread.interrupt();
                   break;
@@ -1283,11 +1283,11 @@ public final class BackupDaemon {
           done = true;
         } catch (Throwable t) {
           Logger logger = environment.getLogger();
-          logger.logp(Level.SEVERE, BackupDaemon.class.getName(), "main", null, t);
+          logger.logp(Level.SEVERE, BackupDaemon.class.getName(), "main", "TODO: message here", t);
           try {
             Thread.sleep(60000);
           } catch (InterruptedException err) {
-            logger.logp(Level.WARNING, BackupDaemon.class.getName(), "main", null, err);
+            logger.logp(Level.WARNING, BackupDaemon.class.getName(), "main", "TODO: message here", err);
             // Restore the interrupted status
             Thread.currentThread().interrupt();
             break;
