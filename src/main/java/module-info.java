@@ -1,6 +1,6 @@
 /*
  * aoserv-backup - Backup client for the AOServ Platform.
- * Copyright (C) 2021, 2022, 2023  AO Industries, Inc.
+ * Copyright (C) 2021, 2022, 2023, 2026  AO Industries, Inc.
  *     support@aoindustries.com
  *     7262 Bull Pen Cir
  *     Mobile, AL 36695
@@ -21,7 +21,6 @@
  * along with aoserv-backup.  If not, see <https://www.gnu.org/licenses/>.
  */
 module com.aoindustries.aoserv.backup {
-  exports com.aoindustries.aoserv.backup;
   // Direct
   requires com.aoapps.hodgepodge; // <groupId>com.aoapps</groupId><artifactId>ao-hodgepodge</artifactId>
   requires com.aoapps.io.posix; // <groupId>com.aoapps</groupId><artifactId>ao-io-posix</artifactId>
@@ -34,4 +33,6 @@ module com.aoindustries.aoserv.backup {
   // Java SE
   requires java.logging;
   requires java.sql;
+
+  exports com.aoindustries.aoserv.backup;
 }
